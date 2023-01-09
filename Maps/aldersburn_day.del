@@ -1,0 +1,18 @@
+
+import "../main.del";
+
+rule: "Map - Eichenwalde"
+if(CurrentMap() == Map.Eichenwalde)
+{
+    GoopSpawns = [Vector(118.67, 18.86, -44.67), Vector(123.69, 18.86, -25.44), Vector(113, 14.72, -29.13)];
+    WaitSpawns = [Vector(-28.87, 6.5, -86.87), Vector(-26.03, 6.5, -92.63), Vector(-20.9, 6.5, -90.75), Vector(-24.08, 6.5, -83.7)];
+    GameMapName = 'Adlersburnn (Dawn)';
+    PlayerSpawns = [];
+    MapNightmareSettings = MapNightmareType.StoryOnly;
+
+    dialog_icon = HeroIconString(Hero.Symmetra);
+    dialog_name = 'The Summoner';
+    SeekerStartDialog = [["As the clock ticked toward the zeroth hour, a familar yellow light died down and a new one was born.", "Our tale began and now ends in Adlersburnn.", "The Lord of the Castle has been slain by those cursed, those wicked, and those twisted by a new dark age.", "Junkenstien may have not have gotten his revenge, but the world will still burn."]];
+    
+    // As the clock reached the zeroth hour, a new era began. "Our tale began and now ends in Adlersburnn. The Lord of the Castle has been slain by those cursed, those wicked, and those twisted by a new dark age.
+}

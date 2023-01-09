@@ -1,0 +1,39 @@
+
+import "main.del";
+
+globalvar String GameMapName 16 = "Invalid Map";
+globalvar Boolean SuppressStart 36;
+
+rule: "Game Manager - Start Game"
+if(CountOf(GetGamePlayers()) > 0)
+if(CountOf(GetGamePlayers()) == CountOf(AllPlayers(Team.Team1)))
+if(CurrentGameState == GameState.Waiting)
+if(IsValidMap)
+if(!SuppressStart)
+{
+    Wait(5);
+    CurrentGameState = GameState.Play;
+    PlayArrayDialog(RandomValueInArray(SeekerStartDialog));
+    
+    show_dialog = false;
+    BigMessage(AllPlayers(), GameMapName);
+}
+
+rule: "Game Manager - Game Over by Death"
+if(CountOf(GetGamePlayers()) == 0)
+if(CurrentGameState == GameState.Play)
+{
+    SetSlowMotion(50);
+    BigMessage(AllPlayers(), 'Game Over');
+    EnemyGroupSpawnQueue = [];
+    DestroyAllHudText();
+    DestroyAllEffects();
+    DestroyAllIcons();
+    CurrentGameState = GameState.GameOver;
+    Wait(1);
+    SetSlowMotion(100);
+    Wait(2);
+    CreateHudText(AllPlayers(Team.Team1), '\n  Stats  \n', 
+        $" Score Earned: {CompetitiveRanking}\n Damage Dealt/Taken Ratio: {CompetitiveDamage/CompetitiveDamageReceived}\n Minions Eliminated: {TotalMinionEliminated}\n Heroes Eliminated: {TotalHeroEliminated}\n Minibosses Eliminated: {TotalMinibossEliminated}"
+    );
+}

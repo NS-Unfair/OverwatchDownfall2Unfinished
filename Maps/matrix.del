@@ -1,0 +1,143 @@
+
+import "../main.del";
+
+// Centry Bosses
+import "../Entities/Centry/suffer.del";
+
+globalvar Boolean IsBossFight 37;
+globalvar Number BossHealth 38;
+globalvar Player SubBossEntity 39;
+globalvar Vector BossPosition 40;
+globalvar Number BossSize 41;
+globalvar Number BossEyeSize 42;
+globalvar Number BossHP 43;
+globalvar Number BossMaxHP 44;
+globalvar Number BossEyeReact 45;
+globalvar Boolean BossSuppressAI 46;
+globalvar Boolean BossDebugAI 47;
+globalvar String BossCentryName;
+
+// Possible Centrys
+/*
+    Temerity
+*/
+
+enum Centry {
+    None
+    , Agony  // A violent, intense struggle, especially the struggle that precedes death.
+    , Suffer // To sustain a loss, setback, or decline in effectiveness; become worse.
+}
+
+globalvar Number | Centry BossCurrentCentry = Centry.None;
+
+globalvar String[] BossCentrys = [
+    'Agony',
+    'Suffer'
+];
+
+globalvar Color[] BossCentryColors = [
+    Color.Red,
+    Color.Gray
+];
+
+globalvar define BossCentryEffects = [];
+
+
+rule: "Map - Matrix (Workshop Green Screen)"
+if(CurrentMap() == Map.Workshop_Green_Screen)
+{
+    // We do NOT need goop spawns since there is no Necro player on this map
+    PlayerSpawns = [Vector(10), Vector(-10), Vector(Z:10), Vector(Z:-10)];
+    # Set this to the \"cmd_waitspawn_ignore\" constant
+    WaitSpawns = cmd_waitspawn_ignore;
+    # Matrix map
+    GameMapName = 'Last Light';
+    MapNightmareSettings = MapNightmareType.StoryOnly;
+    IsBossFight = true;
+    NoSpawnAtEnemy = true;
+    SuppressNewWave = true;
+    MapNoNecro = 2;
+    GroupSpawnMultiplier = 0.8;
+}
+
+rule: "Final Boss - Start the Nightmare"
+if(CurrentMap() == Map.Workshop_Green_Screen)
+if(CurrentGameState == GameState.Play)
+{
+    SetObjectiveDescription(AllPlayers(Team.Team1), 'Survive');
+    DisableHeroHud(AllPlayers());
+    Wait(3);
+    SubBossEntity = SpawnEnemy(Vector(), EntityType.ScriptedObject);
+    ForcePlayerHero(SubBossEntity, Hero.JunkerQueen);
+    SetInvisible(SubBossEntity, InvisibleTo.All);
+    SetStatus(SubBossEntity, null, Status.PhasedOut, 9999);
+    SetMaxHealth(SubBossEntity, 1000);
+    StartForcingDummyBotName(SubBossEntity, '???');
+    ActiveSpawns = [Vector(7,0,0), Vector(-7,0,0), Vector(0,0,7), Vector(0,0,-7), Vector(7,0,-7), Vector(-7,0,7), Vector(7,0,7), Vector(-7,0,-7)];
+    SetMatchTime(1);
+    WaitUntil(MatchTime() == 0, 9999);
+    CreateEffect(AllPlayers(), Effect.Sphere, BossCentryColors[BossCurrentCentry], UpdateEveryFrame(BossPosition), UpdateEveryFrame(BossSize), EffectRev.VisibleToPositionRadiusAndColor);
+    BossCentryEffects[0] = LastCreatedEntity();
+    CreateEffect(AllPlayers(), Effect.Orb, BossCentryColors[BossCurrentCentry], UpdateEveryFrame(BossPosition), 3, EffectRev.VisibleToPositionRadiusAndColor);
+    BossCentryEffects[1] = LastCreatedEntity();
+    CreateEffect(AllPlayers(), Effect.BadAura, BossCentryColors[BossCurrentCentry], UpdateEveryFrame(BossPosition), UpdateEveryFrame(BossSize), EffectRev.VisibleToPositionRadiusAndColor);
+    BossCentryEffects[2] = LastCreatedEntity();
+    StartCamera(AllPlayers(Team.Team1), PositionOf(SubBossEntity), EyePosition(LocalPlayer()), 0.2);
+    StartForcingPlayerOutlines(AllPlayers(Team.Team1), AllPlayers(Team.Team1), true, Color.Team2, OutlineType.Always);
+    DisableNameplates(AllPlayers(Team.Team1), AllPlayers(Team.Team1));
+    Wait(1.2);
+    SetSlowMotion(70);
+    BigMessage(AllPlayers(), "Centry Suffer");
+    StartForcingDummyBotName(SubBossEntity, 'Centry Suffer');
+    BossSuppressAI = true;
+    StartForcingPlayerPosition(SubBossEntity, UpdateEveryFrame(BossPosition), true);
+    ChaseVariableOverTime(BossPosition, Vector(Y:5), 3, TimeChaseReevaluation.None);
+    Wait(2.8);
+    BigMessage(AllPlayers(), "Defeat the Centrys");
+    BigMessage(AllPlayers(), "Foes keep it alive");
+    SetObjectiveDescription(AllPlayers(Team.Team1), 'Eliminate Suffer');
+    SetSlowMotion(100);
+    EnableHeroHud(AllPlayers());
+    BossCurrentCentry = Centry.Suffer;
+    BossSuppressAI = false;
+    BossMaxHP = 2000;
+    BossHP = 2000;
+    BossCentryName = "Suffer";
+    CreateProgressBarInWorldText(AllPlayers(), UpdateEveryFrame(100/BossMaxHP*BossHP), '{0} {1} {0}'.Format([AbilityIconString(Hero.Baptiste, Button.Ability2), BossCentryName]), UpdateEveryFrame(BossPosition + Vector(Y:.5)), 1, Clipping.ClipAgainstSurfaces, Color.Team2, Color.Yellow, ProgressBarWorldEvaluation.VisibleToPositionAndValues, Spectators.VisibleAlways);
+    BossCentryEffects[3] = LastCreatedEntity();
+    StopCamera(AllPlayers(Team.Team1));
+    StopForcingPlayerOutlines(AllPlayers(Team.Team1), AllPlayers(Team.Team1));
+    EnableNameplates(AllPlayers(Team.Team1), AllPlayers(Team.Team1));
+    SetMatchTime(60);
+    MakeNewWave(40);
+
+    // Athena Unlocks Health Bar
+    ClearStatus(SubBossEntity, Status.PhasedOut);
+    SetStatus(SubBossEntity, null, Status.Unkillable, 9999);
+}
+
+rule: ""
+if(BossDebugAI)
+{
+    MakeNewWave(20);
+    Wait(20);
+    Loop();
+}
+
+rule: "Centry - Damage Recieved"
+Event.OnDamageTaken
+if(EventPlayer() == SubBossEntity)
+{
+    BossHP -= EventDamage();
+    BossMaxHP -= EventDamage() * 0.1;
+    SetPlayerHealth(EventPlayer(), MaxHealth()*0.9);
+}
+
+rule: "Centry - Healing Recieved"
+Event.OnHealingTaken
+if(EventPlayer() == SubBossEntity)
+{
+    BossHP -= EventHealing();
+    SetPlayerHealth(EventPlayer(), MaxHealth()*0.9);
+}
+

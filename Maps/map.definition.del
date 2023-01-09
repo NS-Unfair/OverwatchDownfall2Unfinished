@@ -1,0 +1,32 @@
+
+import "../main.del";
+import "bounds.definition.del";
+
+enum MapNightmareType {
+    None,
+    StoryAndNightmare,
+    StoryOnly,
+    NightmareOnly
+}
+
+globalvar Boolean IsValidMap 27 = true;
+globalvar MapNightmareType MapNightmareSettings 28 = MapNightmareType.None;
+
+import "rialto.del";
+import "havana.del";
+//import "matrix.del";
+
+// Story Maps
+    // Midtown : Terminal
+    // Rialto : Canal Grande
+    // Circuit Royal : Clockwise
+    // Havana : La Habana
+    // Echenwalde : Adlerburnn (Day)
+    // King's Row (Winter) : Street of Centries
+    // Colosseo : Circuit Maximus
+
+// Nightmare Maps
+    // Echenwalde Halloween (Adlersburnn) : Last Light
+    // Circuit Royal : Senso Orario
+    // King's Row (Winter)
+    // Havana : Fortificación

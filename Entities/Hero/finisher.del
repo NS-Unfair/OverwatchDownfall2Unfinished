@@ -1,0 +1,247 @@
+
+import "../../main.del";
+
+// Role: Tank but garbage
+
+// Dspd = Default speed
+Number finisher_dspd: 130;
+
+rule: "Entity Type \"Finisher\" - Spawned" 
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Finisher)
+if(HasSpawned())
+if(IsAlive())
+{
+    # Developer fact: I was going to give Finisher the super punch
+    # But I decided instead to give that ability to Devaslator
+    StopHealingModification(PassiveHealCancel);
+    PassiveHealCancel = null;
+    SetInvisible(InvisibleTo: InvisibleTo.None);
+    RemoveAllHealthPoolsFromPlayer();
+    DisallowButton(EventPlayer(), Button.SecondaryFire);
+    DisallowButton(EventPlayer(), Button.Ability1);
+    DisallowButton(EventPlayer(), Button.Ability2);
+    DisallowButton(EventPlayer(), Button.Ultimate);
+    DisallowButton(EventPlayer(), Button.PrimaryFire);
+    DisallowButton(EventPlayer(), Button.Jump);
+    AI_name = 'Finisher';
+    MyEnemyType = EnemyType.Hero;
+    StartForcingDummyBotName(EventPlayer(), AI_name);
+    ForcePlayerHero(EventPlayer(), Hero.Soldier76);
+    SetKnockbackDealt(KnockbackDealtPercent: 0);
+    SetMoveSpeed(EventPlayer(), finisher_dspd);
+    SetMaxAmmo(EventPlayer(), 0, 8);
+    SetAmmo(EventPlayer(), 0, 8);
+    StopScalingPlayer();
+    SetMaxHealth(EventPlayer(), 0);
+    MinWait();
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Health, 75 - HealthOfType(HealthType: HealthType.Health), true, false);
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Armor, 300 - HealthOfType(HealthType: HealthType.Armor), true, false);
+
+    StartHealOverTime(EventPlayer(), null, 0.1, 999999);
+    //ai_ultimate_needed = 2000;
+
+    MinWait();
+    //SetMaxHealth(EventPlayer(), 0);
+    ai_actual_max_health = Health();
+}
+
+rule: "Entity Type \"Finisher\" - Primary : Plasma Pulse" 
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Finisher)
+if(IsButtonHeld(EventPlayer(), Button.PrimaryFire))
+if(Ammo(EventPlayer(), 0) > 0)
+if(!IsReloading(EventPlayer()))
+if(!ai_using_ability)
+{
+    SetAmmo(EventPlayer(), 0, Ammo(EventPlayer()) - 1);
+    ai_using_ability = true;
+    ai_secondary_cooldown_bk = AbilityCooldown(EventPlayer(), Button.SecondaryFire);
+    AllowButton(EventPlayer(), Button.SecondaryFire);
+    SetDamageDealt(EventPlayer(), 10);
+    SetProjectileSpeed(EventPlayer(), 9999);
+    SetAbilityCooldown(EventPlayer(), Button.SecondaryFire, 0);
+    ForcePlayerHero(EventPlayer(), Hero.Soldier76);
+    PressButton(EventPlayer(), Button.SecondaryFire);
+    MinWait();
+    ai_using_ability = false;
+    //SetAbilityCooldown(EventPlayer(), Button.SecondaryFire, ai_secondary_cooldown_bk);
+    DisallowButton(EventPlayer(), Button.SecondaryFire);
+    Wait(0.5);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Entity Type \"Finisher\" - Ability 1 (Actually 2!) : Release" 
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Finisher)
+if(IsButtonHeld(EventPlayer(), Button.Ability2))
+if(Ammo(EventPlayer(), 0) > 0)
+if(!ai_using_ability)
+if(CanUseAbilities())
+{
+    StartHealOverTime(EventPlayer(), EventPlayer(), 2, 25 * Ammo(EventPlayer(), 0));
+    SetAmmo(EventPlayer(), 0, 0);
+    SetMoveSpeed(EventPlayer(), 50);
+    ai_using_ability = true;
+    SetReloadEnabled(EventPlayer(), false);
+    Wait(1);
+    SetReloadEnabled(EventPlayer(), true);
+    SetMoveSpeed(EventPlayer(), finisher_dspd);
+    ai_using_ability = false;
+    SetAbilityCooldown(EventPlayer(), Button.Ability2, 6);
+}
+
+define WillFallOffEdge(Vector vec, Number distance = 4): IsInLineOfSight(vec, vec - Vector(0, distance));
+define GetGamePlayers(Team team = Team.Team1): FilteredArray(AllLivingPlayers(team), HasSpawned(ArrayElement()));
+Vector DirectionSwarmPlayer(ref Player toward) {
+    define ang! = HorizontalFacingAngleOf() + HorizontalAngleTowards(toward);
+
+    ang += RandomReal(
+        WillFallOffEdge(EyePosition() + (DirectionFromAngles(HorizontalFacingAngleOf() - 80)) * 3) ? 0 : -80,
+        WillFallOffEdge(EyePosition() + (DirectionFromAngles(HorizontalFacingAngleOf() + 80)) * 3) ? 0 : 80
+    );
+
+    if(WillFallOffEdge(EyePosition() + (DirectionFromAngles(ang, 0) * 3))) {
+        ang += 180;
+        if(WillFallOffEdge(EyePosition() + (DirectionFromAngles(ang, 0) * 3))) {
+            return null;
+        }
+    }
+
+    return DirectionFromAngles(ang, 0);
+}
+
+Boolean IsImmuneToDamage(Player player): HasStatus(player, Status.Invincible) || HasStatus(player, Status.Unkillable) || HasStatus(player, Status.PhasedOut);
+
+rule: "AI \"Finisher\" - Request Help"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Finisher)
+if(HasSpawned())
+if(IsAlive())
+if(AI_controlled)
+if(LowHealth(EventPlayer()))
+{
+    Communicate(EventPlayer(), Communication.NeedHelp);
+    Wait(3);
+}
+
+rule: "AI \"Finisher\" - Think"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Finisher)
+if(HasSpawned())
+if(IsAlive())
+if(AI_controlled)
+if(AICanMove())
+//if(!BossSuppressAI)
+{
+    /*Player[] nearby_teammates! = FilteredArray(GetLivingEnemies(), ArrayElement() != EventPlayer() && DistanceBetween(EventPlayer(), ArrayElement()) < 10 && IsInLineOfSight(EyePosition(), EyePosition(ArrayElement())));
+    Player[] nearby_teammates_attacking! = FilteredArray(nearby_teammates, ArrayElement().ai_target != null);
+    Player[] nearby_teammates_help! = FilteredArray(nearby_teammates, IsCommunicating(ArrayElement(), Communication.NeedHelp));
+    
+    if(nearby_teammates_help != [] && !ai_target_disappear_vec) {
+        ai_target_disappear_vec = PositionOf(RandomValueInArray(nearby_teammates_help));
+        SkipIf(RandomInteger(1, 10) == 10, 1);
+        Communicate(EventPlayer(), Communication.WithYou);
+    }*/
+
+    was_ai_target = ai_target;
+    if(ai_target.isInvisibleToAI && RandomInteger(1, 5) > 3) {
+        ai_target = null;
+    }
+    if(!ai_target || (ai_target && (IsDead(ai_target) || !IsInLineOfSight(EyePosition(), EyePosition(ai_target))))) {
+        ai_target = LastOf(SortedArray(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), 
+            (IsInLineOfSight(EyePosition(), EyePosition(ArrayElement()), BarrierLOS.EnemyBarriersBlock) || IsInLineOfSight(EyePosition(), PositionOf(ArrayElement()), BarrierLOS.EnemyBarriersBlock)) &&
+            !IsImmuneToDamage(ArrayElement()) && !!ArrayElement().isInvisibleToAI),
+        Health(ArrayElement())));
+        if(!ai_target) {
+            ai_target = FirstOf(SortedArray(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), 
+                (
+                    IsInLineOfSight(EyePosition(), EyePosition(ArrayElement()), BarrierLOS.NoBarriersBlock) ||
+                    IsInLineOfSight(EyePosition(), PositionOf(ArrayElement()), BarrierLOS.NoBarriersBlock)
+                ) && !IsImmuneToDamage(ArrayElement()) && !ArrayElement().isInvisibleToAI),
+            Health(ArrayElement())));
+        }
+    }
+    Wait(update_tick);
+    AbortIfConditionIsFalse();
+    Number D! = DistanceBetween(EyePosition(), RayCastHitPosition(EyePosition(), EyePosition() + (FacingDirectionOf() * 10), [], AllPlayers(), false)) - 0.5;
+    //Boolean IsBarrier! = (IsInLineOfSight(EyePosition(), EyePosition() + (FacingDirectionOf() * D)) && !IsInLineOfSight(EyePosition(), EyePosition() + (FacingDirectionOf() * D), BarrierLOS.EnemyBarriersBlock));
+    if(
+        ai_target
+    ) {
+        ai_target_disappear_vec = null;
+        StartHoldingButton(EventPlayer(), Button.PrimaryFire);
+        Vector face: IsInLineOfSight(EyePosition(), EyePosition(ai_target)) ? EyePosition(ai_target) + InWorldMovement(ai_target) : PositionOf(ai_target) + InWorldMovement(ai_target);
+        ai_aim_pos = face;
+        Number HorizontalTurn: HorizontalAngleFromDirection(DirectionTowards(EyePosition(), face)) - HorizontalFacingAngleOf();
+        Number VerticalTurn: VerticalAngleFromDirection(DirectionTowards(EyePosition(), face)) - VerticalFacingAngleOf();
+        StartFacing(EventPlayer(), DirectionFromAngles(HorizontalFacingAngleOf() + (HorizontalTurn * CalcAiAccuracy()), VerticalFacingAngleOf() + (VerticalTurn * CalcAiAccuracy())), 300, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+        //StartFacing(EventPlayer(), DirectionTowards(EyePosition(), EyePosition(ai_target)), 300, Relative.ToWorld, FacingRev.None);
+
+        if(DistanceBetween(EventPlayer(), ai_target) < 10) {
+            StartThrottleInDirection(EventPlayer(), DirectionFromAngles((RandomInteger(0, 1) == 0 ? -45 : 45) + HorizontalFacingAngleOf() + 180), 1, Relative.ToPlayer, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.None);
+        } else {
+            define dir! = DirectionSwarmPlayer(ai_target);
+            if(dir != null) {
+                StartThrottleInDirection(EventPlayer(), dir, 1, Relative.ToWorld, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.None);
+            }
+        }
+
+        if(Health() < MaxHealth() && Ammo() >= MaxAmmo()/2)
+            PressButton(EventPlayer(), Button.Ability2);
+    } else {
+        if(Health() < MaxHealth() && AbilityCooldown(EventPlayer(), Button.Ability2) == 0)
+            PressButton(EventPlayer(), Button.Ability2);
+
+        if(was_ai_target || IsButtonHeld(Button: Button.PrimaryFire)) {
+            if(was_ai_target) {
+                ai_target_disappear_vec = PositionOf(was_ai_target);
+
+                if(DistanceBetween(ai_target_disappear_vec, PositionOf()) < 5) {
+                    PressButton(EventPlayer(), Button.Jump);
+                    ai_target_disappear_vec = null;
+                }
+            }
+            StopHoldingButton(EventPlayer(), Button.PrimaryFire);
+            StopThrottleInDirection();
+        }
+
+        if(ai_target_disappear_vec) {
+            if(DistanceBetween(ai_target_disappear_vec, PositionOf()) >= 5 && !WillFallOffEdge(EyePosition() + DirectionTowards(EventPlayer(), ai_target_disappear_vec), 12)) {
+                StartThrottleInDirection(EventPlayer(), DirectionTowards(EventPlayer(), ai_target_disappear_vec), 1, Relative.ToWorld, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.None);
+                StartFacing(EventPlayer(), DirectionFromAngles(HorizontalFacingAngleOf() + HorizontalAngleTowards(EventPlayer(), ai_target_disappear_vec)), 300, Relative.ToWorld, FacingRev.None);
+            } else if (ai_target_disappear_vec != null) {
+                ai_target_disappear_vec = null;
+                StopHoldingButton(EventPlayer(), Button.PrimaryFire);
+                StopThrottleInDirection();
+            }
+        }
+    }
+
+    Wait(update_tick);
+    LoopIfConditionIsTrue();
+}
+
+rule: "AI \"Finisher\" - Fail Save"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Finisher)
+if(HasSpawned())
+if(IsAlive())
+if(AI_controlled)
+if(WillFallOffEdge(EyePosition() + (InWorldMovement() * 3), 6))
+{
+    StopThrottleInDirection();
+    ai_target_disappear_vec = null;
+}
+
+rule: "AI \"Finisher\" - Think End"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Finisher)
+if(HasSpawned())
+if(IsAlive())
+if(AI_controlled)
+if(!AICanMove())
+{
+    StopThrottleInDirection();
+    StopFacing();
+}

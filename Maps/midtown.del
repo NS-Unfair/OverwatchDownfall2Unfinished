@@ -1,0 +1,10 @@
+
+import "../main.del";
+
+rule: "Map - Terminal (Midtown)"
+if(CurrentMap() == Map.Midtown)
+{
+    GoopSpawns = [];
+    PlayerSpawns = [];
+    GameMapName = 'Terminal';
+}

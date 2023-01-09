@@ -1,0 +1,30 @@
+
+import "../main.del";
+
+rule: "Entity Type \"Unspawned\" - Spawned" 
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Unspawned)
+if(HasSpawned())
+{
+    StopThrottleInDirection();
+    StopTransformingThrottle();
+    StopForcingThrottle();
+    StopFacing();
+    AI_name = 'Unspawned';
+    MyEnemyType = EnemyType.None;
+    isGamePlayer = true;
+    StopForcingPlayerPosition(EventPlayer());
+    /*if(VengefulSpirit_effects) {
+        DestroyEffect(VengefulSpirit_effects[0]);
+        DestroyEffect(VengefulSpirit_effects[1]);
+    }*/
+    EntityVariant = 0;
+    //ai_custom_ultimate = false;
+    goopling_do_healing = false;
+    ai_cheat_death = false;
+    StopHoldingButton(EventPlayer(), Button.PrimaryFire);
+    StopHoldingButton(EventPlayer(), Button.SecondaryFire);
+    StopHoldingButton(EventPlayer(), Button.Ability1);
+    StopHoldingButton(EventPlayer(), Button.Ability2);
+    StopHoldingButton(EventPlayer(), Button.Ultimate);
+}

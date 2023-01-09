@@ -1,0 +1,160 @@
+import "../entity.del";
+
+rule: "Challenge Sombra - Spawned"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(MyEntityType == EntityType.Challenge_Sombra)
+{
+    AI_name = 'Sombra';
+    StopScalingPlayer();
+    ForcePlayerHero(Hero: Hero.Sombra);
+    SetInvisible(EventPlayer(), InvisibleTo.All);
+    SetStatus(EventPlayer(), null, Status.PhasedOut, 9999);
+    AllowButton(EventPlayer(), Button.PrimaryFire);
+    AllowButton(EventPlayer(), Button.SecondaryFire);
+    AllowButton(EventPlayer(), Button.Ability1);
+    MinWait();
+    PressButton(EventPlayer(), Button.Ability1);
+    Wait(2, WaitBehavior.RestartWhenTrue);
+    SetInvisible(EventPlayer(), InvisibleTo.None);
+    ClearStatus(EventPlayer(), Status.PhasedOut);
+    SetDamageDealt(EventPlayer(), 30);
+    AI_controlled = true;
+}
+
+rule: "Challenge Replicator Effect"
+Event.OngoingPlayer
+Team.Team2
+if(challenge_wave == 1)
+{
+    CreateEffect(AllPlayers(), Effect.EchoCloningEffect, Color.Aqua, EventPlayer(), 1, EffectRev.VisibleToPositionAndRadius);
+    CreateEffect(AllPlayers(), Effect.EchoCloningSound, Color.Aqua, EventPlayer(), 1, EffectRev.VisibleToPositionAndRadius);
+    StartForcingDummyBotName(EventPlayer(), "Replicator");
+}
+
+rule: "Challenge Replicator Effect"
+Event.OngoingPlayer
+Team.Team2
+if(HasSpawned())
+if(IsAlive())
+if(challenge_wave == 1)
+{
+    MinWait();
+    StartForcingDummyBotName(EventPlayer(), $"Replicator {AI_name}");
+}
+
+rule: "Challenge Sombra - Game End"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(!IsUsingAbility1())
+if(MyEntityType == EntityType.Challenge_Sombra)
+if(CurrentGameState == GameState.GameOver)
+{
+    SetAbilityCooldown(EventPlayer(), Button.Ability1, 0);
+    PressButton(EventPlayer(), Button.Ability1);
+    SetStatus(EventPlayer(), null, Status.PhasedOut, 9999);
+    StopThrottleInDirection();
+    StopFacing();
+    AI_controlled = false;
+}
+
+rule: "Challenge Sombra - Game End"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(MyEntityType == EntityType.Challenge_Sombra)
+if(IsUsingAbility1())
+if(CurrentGameState == GameState.GameOver)
+{
+    Wait(0.5);
+    SetInvisible(EventPlayer(), InvisibleTo.All);
+}
+
+rule: "Challenge Sombra - Invisible AI"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(IsUsingAbility1())
+if(MyEntityType == EntityType.Challenge_Sombra)
+if(!HasStatus(EventPlayer(), Status.PhasedOut))
+{
+    Wait(update_tick, WaitBehavior.AbortWhenFalse);
+    ai_target = FirstOf(SortedArray(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), IsInLineOfSight(EyePosition(), EyePosition(ArrayElement()))), DistanceBetween(EventPlayer(), ArrayElement())));
+    AbortIfConditionIsFalse();
+    LoopIf(!ai_target);
+    StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), ai_target), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+    if(DistanceBetween(EventPlayer(), ai_target) > 6) {
+        StartThrottleInDirection(EventPlayer(), DirectionTowards(EventPlayer(), ai_target), 1, Relative.ToWorld, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.DirectionAndMagnitude);
+    } else {
+        if(HasStatus(ai_target, Status.Hacked)) {
+            if(RandomInteger(1, 5) >= 3)
+                PressButton(EventPlayer(), Button.Ability1);
+        } else {
+            StopThrottleInDirection();
+            if(!IsButtonHeld(EventPlayer(), Button.SecondaryFire))
+                StartHoldingButton(EventPlayer(), Button.SecondaryFire);
+        }
+    }
+    LoopIfConditionIsTrue();
+}
+
+rule: "Challenge Sombra - Visible AI"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(!IsUsingAbility1())
+if(!HasStatus(EventPlayer(), Status.PhasedOut))
+if(MyEntityType == EntityType.Challenge_Sombra)
+{
+    Wait(update_tick, WaitBehavior.AbortWhenFalse);
+    ai_target = FirstOf(SortedArray(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), IsInLineOfSight(EyePosition(), EyePosition(ArrayElement()))), DistanceBetween(EventPlayer(), ArrayElement())));
+    if(ai_target && !IsButtonHeld(EventPlayer(), Button.PrimaryFire)) {
+        StartHoldingButton(EventPlayer(), Button.PrimaryFire);
+        StopHoldingButton(EventPlayer(), Button.SecondaryFire);
+        StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), ai_target), 150, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+    } else {
+        StopHoldingButton(EventPlayer(), Button.PrimaryFire);
+        StopFacing();
+    }
+    LoopIfConditionIsTrue();
+}
+
+rule: "Challenge Sombra - Target Dead"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(MyEntityType == EntityType.Challenge_Sombra)
+if(IsDead(ai_target) || !IsInLineOfSight(EventPlayer(), ai_target))
+{
+    ai_target = null;
+    StopThrottleInDirection();
+    StopFacing();
+    if(!IsUsingAbility1()) {
+        SetAbilityCooldown(EventPlayer(), Button.Ability1, 0);
+        PressButton(EventPlayer(), Button.Ability1);
+    }
+}
+
+disabled rule: "Challenge Sombra - Teleport"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(IsUsingAbility1())
+if(AI_controlled)
+if(MyEntityType == EntityType.Challenge_Sombra)
+if(!ai_target)
+{
+    AbortIf(HasStatus(EventPlayer(), Status.Hacked));
+    Wait(RandomInteger(2, 5), WaitBehavior.AbortWhenFalse);
+    SetInvisible(EventPlayer(), InvisibleTo.All);
+    SetStatus(EventPlayer(), null, Status.PhasedOut, 9999);
+    Teleport(EventPlayer(), EyePosition(RandomValueInArray(GetGamePlayers(Team.Team1))) + (DirectionFromAngles(RandomReal(0, 360)) * 3));
+    MinWait();
+    PressButton(EventPlayer(), Button.Ability1);
+    Wait(2, WaitBehavior.AbortWhenFalse);
+    SetInvisible(EventPlayer(), InvisibleTo.None);
+    ClearStatus(EventPlayer(), Status.PhasedOut);
+    LoopIfConditionIsTrue();
+}

@@ -1,0 +1,334 @@
+
+import "../main.del";
+
+import "locations.del";
+
+enum NecroMode {
+    SpawnViews,
+    SpectateAlies
+}
+Number necro_mode_cnt: 2;
+
+Number necro_activate_cost: 200;
+
+playervar Number player_necro_select 0 = 0;
+playervar Player player_necro_teammate_select 3;
+playervar Boolean player_necro_teammate_control 4 = false;
+globalvar Number player_necro_money 7 = 400;
+playervar Player player_necro_control 13;
+globalvar Boolean NecroInPlay 6 = false;
+
+playervar NecroMode | Number player_necro_mode 7 = NecroMode.SpawnViews;
+
+rule: "Team 2 Player - Force Spawn" 1
+Event.OngoingPlayer
+Team.Team2
+if(!IsDummyBot())
+if(!HasSpawned())
+//if(MyEntityType == EntityType.Necro)
+{
+    NecroInPlay = true;
+    MyEntityType = EntityType.Necro;
+    PreloadHero(EventPlayer(), Hero.Zenyatta);
+    ForcePlayerHero(EventPlayer(), Hero.Zenyatta);
+    SetInvisible(EventPlayer(), InvisibleTo.All);
+    define pos: GoopSpawns[player_necro_select] + Vector(0, 0.5);
+    StartCamera(EventPlayer(), pos, pos + FacingDirectionOf(), 10);
+    DisableHeroHud(EventPlayer());
+    DisallowButton(EventPlayer(), Button.PrimaryFire);
+    DisallowButton(EventPlayer(), Button.SecondaryFire);
+    StartForcingPlayerPosition(EventPlayer(), Vector(0, 9999, 0), false);
+
+    CreateHudText(FilteredArray(EventPlayer(), player_necro_mode == NecroMode.SpawnViews), "Switch Cameras [{0}/{1}]".Format([InputBindingString(Button.PrimaryFire), InputBindingString(Button.SecondaryFire)]), '', '', Location.Left, 0, Color.Green);
+    CreateHudText(FilteredArray(FilteredArray(EventPlayer(), !ArrayContains(ActiveSpawns, GoopSpawns[player_necro_select])), player_necro_mode == NecroMode.SpawnViews), "Activate Goop Spawn [{0}] (Cost {1})".Format([InputBindingString(Button.Jump), necro_activate_cost]), '', '', Location.Left, 1, player_necro_money >= necro_activate_cost ? Color.Green : Color.Red, Color.Gray, Color.Gray, HudTextRev.VisibleToAndColor, Spectators.VisibleNever);
+
+    CreateHudText(FilteredArray(EventPlayer(), player_necro_mode == NecroMode.SpectateAlies), "Switch Alies [{0}/{1}]".Format([InputBindingString(Button.PrimaryFire), InputBindingString(Button.SecondaryFire)]), '', '', Location.Left, 0, Color.Green);
+    CreateHudText(FilteredArray(EventPlayer(), player_necro_mode == NecroMode.SpectateAlies), "Take Control [{0}]".Format([InputBindingString(Button.Jump)]), '', '', Location.Left, 1, Color.Green);
+}
+
+rule: "Team 2 Player - Previous Goop Spawn" 2
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.PrimaryFire))
+if(player_necro_mode == NecroMode.SpawnViews)
+{
+    player_necro_select = player_necro_select - 1;
+    if(player_necro_select < 0) {
+        player_necro_select = CountOf(GoopSpawns) - 1;
+    }
+}
+
+rule: "Team 2 Player - Next Goop Spawn" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.SecondaryFire))
+if(player_necro_mode == NecroMode.SpawnViews)
+{
+    player_necro_select = player_necro_select + 1;
+    if(player_necro_select >= CountOf(GoopSpawns)) {
+        player_necro_select = 0;
+    }
+}
+
+rule: "Team 2 Player - Activate Goop Spawn" 4
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Jump))
+if(player_necro_money >= necro_activate_cost)
+if(player_necro_mode == NecroMode.SpawnViews)
+{
+    player_necro_money -= necro_activate_cost;
+    ModifyVariable(ActiveSpawns, Operation.AppendToArray, GoopSpawns[player_necro_select]);
+    CreateEffect(EventPlayer(), Effect.Ring, Color.Team2, GoopSpawns[player_necro_select], 4, EffectRev.VisibleTo);
+    SpawnEnemy(GoopSpawns[player_necro_select], EntityType.Finisher);
+}
+
+rule: "Team 2 Player - Switch Mode" 5
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Melee))
+if(!player_necro_teammate_control)
+{
+    SmallMessage(EventPlayer(), 'Switching Mode');
+    player_necro_mode++;
+
+    if(player_necro_mode == NecroMode.SpectateAlies && CountOf(GetLivingEnemies()) == 0)
+        player_necro_mode++;
+
+    player_necro_mode%=necro_mode_cnt;
+
+    SwitchedNecroMode();
+}
+
+void SwitchedNecroMode() 'SwitchedNecroMode' {
+    switch (player_necro_mode) {
+        case NecroMode.SpectateAlies:
+            if(!player_necro_teammate_select) {
+                player_necro_teammate_select = RandomValueInArray(GetLivingEnemies());
+            }
+            StartCamera(EventPlayer(), EyePosition(GetSpectateNecro()) - (FacingDirectionOf() * 4), EyePosition(GetSpectateNecro()), 10);
+            break;
+        case NecroMode.SpawnViews:
+            define pos: GoopSpawns[player_necro_select] + Vector(0, 0.5);
+            StartCamera(EventPlayer(), pos, pos + FacingDirectionOf(), 0);
+            break;
+    }
+}
+
+// Mode "SpectateAlies"
+
+define GetLivingEnemies(): FilteredArray(AllLivingPlayers(Team.Team2), HasSpawned(ArrayElement()) && ArrayElement().MyEntityType != EntityType.Unspawned && ArrayElement().MyEntityType != EntityType.Necro && ArrayElement().MyEntityType != EntityType.None);
+
+rule: "Team 2 Player - Previous Teammate" 2
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.PrimaryFire))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(!player_necro_teammate_control)
+{
+    # Checky Checky to make sure no glitchy glitchy
+    define e! = GetLivingEnemies();
+    player_necro_teammate_select = ValueInArray(e, Modulo(IndexOfArrayValue(e, player_necro_teammate_select) - 1, CountOf(e)));
+}
+
+rule: "Team 2 Player - Next Teammate" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.SecondaryFire))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(!player_necro_teammate_control)
+{
+    # Checky Checky to make sure no glitchy glitchy
+    define e! = GetLivingEnemies();
+    player_necro_teammate_select = ValueInArray(e, Modulo(IndexOfArrayValue(e, player_necro_teammate_select) + 1, CountOf(e)));
+}
+
+Player GetSpectateNecro(): player_necro_control ? player_necro_control : player_necro_teammate_select;
+String GetPlayerName(Player play = EventPlayer()): DoNotOptimize<String>($'{play}');
+
+rule: "Team 2 Player - Take Control of Teammate" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Jump))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(!player_necro_teammate_control)
+{
+    define AMONGUS = GetPlayerName();
+    NecroInPlay = false;
+    player_necro_teammate_control = true;
+    Player e! = GetSpectateNecro();
+    player_necro_control = e;
+    StopForcingPlayerOutlines(e);
+    StartCamera(EventPlayer(), UpdateEveryFrame(EyePosition(e) - (FacingDirectionOf() * 4)), UpdateEveryFrame(EyePosition(e)), 0);
+    e.AI_controlled = false;
+    StartFacing(e, UpdateEveryFrame(FacingDirectionOf()), 9999, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+    StartThrottleInDirection(e, ThrottleOf(), DistanceBetween(ThrottleOf(), Vector()), Relative.ToPlayer, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.DirectionAndMagnitude);
+    StartForcingDummyBotName(e, $"{GetPlayerName()}'s {e.AI_name}");
+
+    EnableHeroHud();
+    ForcePlayerHero(Hero: HeroOf(e));
+    SetMaxHealth(HealthPercent: 100);
+    SetMaxHealth(HealthPercent: 100/MaxHealth()*MaxHealth(e));
+}
+
+rule: "Team 2 Player - Control Teammate UI" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    SetMaxAmmo(MaxAmmo: MaxAmmo(player_necro_control));
+    SetAmmo(Ammo: Ammo(player_necro_control));
+    SetPlayerHealth(Amount: Health(player_necro_control));
+    Wait(0.25, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Control Teammate Death" 0
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(player_necro_teammate_control)
+if(IsDead(player_necro_control))
+{
+    NecroInPlay = true;
+    player_necro_control = null;
+    player_necro_teammate_control = false;
+
+    if(CountOf(GetLivingEnemies()) == 0) {
+        player_necro_mode = NecroMode.SpawnViews;
+    }
+    SwitchedNecroMode();
+}
+
+rule: "Team 2 Player - Controlled Teammate Primary" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.PrimaryFire))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.PrimaryFire);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.PrimaryFire), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.PrimaryFire);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Controlled Teammate Ability 1" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Ability1))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.Ability1);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.Ability1), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.Ability1);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Controlled Teammate Ability 2" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Ability2))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.Ability2);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.Ability2), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.Ability2);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Controlled Teammate Melee" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Melee))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.Melee);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.Melee), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.Melee);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Controlled Teammate Jump" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Jump))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.Jump);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.Jump), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.Jump);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Controlled Teammate Reload" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Reload))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.Reload);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.Reload), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.Reload);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Controlled Teammate Interact" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Interact))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.Interact);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.Interact), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.Interact);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 Player - Controlled Teammate Crouch" 3
+Event.OngoingPlayer
+if(HasSpawned())
+if(MyEntityType == EntityType.Necro)
+if(IsButtonHeld(EventPlayer(), Button.Crouch))
+if(player_necro_mode == NecroMode.SpectateAlies)
+if(player_necro_teammate_control)
+{
+    StartHoldingButton(GetSpectateNecro(), Button.Crouch);
+    WaitUntil(!IsButtonHeld(EventPlayer(), Button.Crouch), 9999);
+    StopHoldingButton(GetSpectateNecro(), Button.Crouch);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 AI Necro - Random Enemy Spawn" 3 
+if(!NecroInPlay)
+{
+    if(player_necro_money >= necro_activate_cost) {
+        Player near! = RandomValueInArray(GetGamePlayers());
+        player_necro_money -= necro_activate_cost;
+        ModifyVariable(ActiveSpawns, Operation.AppendToArray, near ? FirstOf(SortedArray(FilteredArray(GoopSpawns, !ArrayContains(ActiveSpawns, ArrayElement())), DistanceBetween(ArrayElement(), near))) : RandomValueInArray(FilteredArray(GoopSpawns, !ArrayContains(ActiveSpawns, ArrayElement()))));
+    }
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}

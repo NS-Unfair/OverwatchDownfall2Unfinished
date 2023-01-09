@@ -1,0 +1,15 @@
+
+import "../main.del";
+
+rule: "Map - Senso Orario (Circuit Royal)"
+if(CurrentMap() == Map.Circuit_Royal)
+{
+    GoopSpawns = [];
+    PlayerSpawns = [];
+    # Clockwise Map
+    if(NightmareMode) 
+        GameMapName = 'Senso Orario';
+    else
+        GameMapName = 'Clockwise';
+    MapNightmareSettings = MapNightmareType.StoryAndNightmare;
+}

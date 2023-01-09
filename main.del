@@ -1,0 +1,117 @@
+
+// Maps
+import "Maps/map.definition.del";
+import "Smartly_PKD/decompress.del";
+
+// Scripts
+import "settings.lobby";
+//import "Navigate/navigate.del";
+import "dialog.del";
+import "game_manager.del";
+import "competitive.del";
+import "Modifiers/modifiers.del";
+import "waiting_room.del";
+
+// Anticrash
+import "anti_crash.del";
+
+// Team 2
+import "Entities/entity.del";
+import "Spawning/necro.del";
+
+// Waves
+import "Waves/wave_manager.del";
+import "Waves/escalation.del";
+// Secrets
+//import "Secrets/secrets.del";
+
+//import "challenge_waves.del";
+import "DBG/debug.del";
+
+enum GameState {
+    Waiting,
+    Play,
+    GameOver,
+    Cutscene
+}
+
+playervar Boolean isGamePlayer 20 = true;
+playervar Boolean PlayerDamageModifier 38 = 1;
+playervar Boolean isInvisibleToAI 21;
+globalvar GameState CurrentGameState 10 = GameState.Waiting;
+globalvar Boolean NightmareMode 26;
+globalvar Boolean MapNoNecro 33;
+
+globalvar Number CurrentGameDifficulty 11 = WorkshopSettingCombo('Difficulty', 'Game Difficulty', 3, ['Casual', 'Hard', 'Extreme', 'Brutal'], 0);
+
+// AI Variables
+globalvar Number ai_skill_level 48 = 0;
+
+disabled rule: "README | Made by UnfairDev" -10000 {
+#You are free to modify this mode as long as credit is given
+#There will be comments all over this mode for if you
+#are modding using OSTW or workshop editor
+    SmallMessage(null, "");
+}
+
+rule: "Difficulty Initial" {
+    # Casual Difficulty
+    if(CurrentGameDifficulty == 0) {
+        ai_skill_level = 15;
+    # Hard Difficulty
+    } else if(CurrentGameDifficulty == 1) {
+        ai_skill_level = 30;
+    # Extreme Difficulty
+    } else if(CurrentGameDifficulty == 2) {
+        ai_skill_level = 60;
+    # Brutal Difficulty
+    } else if(CurrentGameDifficulty == 3) {
+        ai_skill_level = 100;
+    }
+}
+
+rule: "" {
+    DisableCompletion();
+}
+
+rule: "Initial Player/Dummy bot"
+Event.OngoingPlayer
+{
+    DisableRespawning();
+}
+
+rule: "Support Buff"
+Event.OngoingPlayer
+if(HasSpawned())
+if(ArrayContains(AllSupportHeroes(), HeroOf()))
+{
+    PlayerDamageModifier = 1.5;
+    SetDamageDealt(EventPlayer(), 100 * PlayerDamageModifier);
+}
+
+rule: "Initial" 0
+if(IsValidMap)
+if(MapNoNecro != 0)
+{
+    LogToInspector("Valid Map, spawning dummy bots");
+    for(define forloopcount = 1; MapNoNecro == 2 ? 20 : 19; 1) {
+        CreateDummyBot(Hero.Sombra, Team.Team2, forloopcount, Vector(0, -9999, 0), Vector());
+        Player e! = PlayersInSlot(forloopcount, Team.Team2);
+        e.AI_controlled = true;
+        e.MyEntityType = EntityType.Unspawned;
+        MinWait();
+    }
+
+    CreateHudText(AllPlayers(), $"Server Load: {ServerLoad()}", HeaderColor: Color.Gray, Location: Location.Right, );
+}
+
+rule: "Damage Dealt Heal"
+Event.OnDamageDealt
+Team.Team1
+//if(Victim() != SubBossEntity)
+if(HasSpawned())
+if(IsAlive())
+if(!ArrayContains(AllSupportHeroes(), HeroOf()))
+{
+    Heal(EventPlayer(), null, EventDamage() * 0.4);
+}

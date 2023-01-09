@@ -1,0 +1,24 @@
+import "main.del";
+
+globalvar Number update_tick = 0.25;
+Number update_tick_min: 0.5;
+Number update_tick_max: 3;
+
+rule: "Anticrash"
+{
+    Wait(update_tick);
+    Number calc_crash: Max(0.16 * ((ServerLoadAverage() - 200) * 0.6), 0.16);
+    if(ServerLoadAverage() > 200 && update_tick < update_tick_max)
+        update_tick = Min(update_tick + calc_crash, update_tick_max);
+    else if(update_tick > update_tick_min)
+        update_tick = Max(update_tick - 0.16, update_tick_min);
+    Loop();
+}
+
+rule: "Anticrash 2"
+if(update_tick >= 3)
+{
+    SetSlowMotion(80);
+    WaitUntil(update_tick < 3, 9999);
+    SetSlowMotion(100);
+}

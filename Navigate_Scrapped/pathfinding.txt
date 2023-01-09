@@ -1,0 +1,8 @@
+
+This will be my own pathfinding algorithm
+
+This will be based on the Nextbot AI and the PVZ Ops pathfinding. This will make the path randomized and make sure the bot gets to its goal,
+it DOESN'T have to be the shortest path.
+
+To optimize this pathfinding algorithm, there will be bot pathfind groups. In this group, each bot will have the same destination.
+There will only one bot actually pathfinding its way to its goal, the others follow the pathfinder's path.

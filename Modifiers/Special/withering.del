@@ -1,0 +1,32 @@
+import "../modifiers.del";
+
+rule: "Modifier 'Withering'"
+Event.OngoingPlayer
+Team.Team1
+if(ArrayContains(MappedArray(ModifiersChoosen, ArrayElement()[0]), Modifier.Withering))
+{
+    StartDamageOverTime(EventPlayer(), null, 10, 4 * GetModifier(Modifier.Withering)[1]);
+    Wait(10, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Modifier 'Withering' - Multiply"
+Event.OngoingPlayer
+Team.Team1
+if(ArrayContains(MappedArray(ModifiersChoosen, ArrayElement()[0]), Modifier.Withering))
+{
+    MkModifierString();
+    Wait(15);
+    define ind! = IndexOfArrayValue(MappedArray(ModifiersChoosen, ArrayElement()[0]), Modifier.Withering);
+    ModifiersChoosen[ind][1] += 1;
+    LoopIfConditionIsTrue();
+}
+
+rule: "Damage Dealt Heal"
+Event.OnDamageDealt
+Team.All
+if(HasSpawned())
+if(IsAlive())
+{
+    Heal(EventPlayer(), null, EventDamage() * 0.4);
+}

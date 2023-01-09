@@ -1,0 +1,239 @@
+
+import "../../main.del";
+
+// Role: Support
+
+// Description
+/*
+    Sussy text
+*/
+
+playervar Player[] goopling_healing 15 = [];
+playervar Number[] goopling_healing_effects 16 = [];
+playervar Player ai_goopling_latch_player 17 = [];
+playervar Boolean goopling_do_healing 30;
+playervar Number goopling_interval 31;
+Number goopling_heal_time: 10;
+
+Number goopling_dspd: 280;
+Number goopling_health_drain_dps: 10;
+Number goopling_heal_distance: 8;
+Number goopling_healing_dealt: 8;
+
+Player GooplingHealNearby() {
+    Player healed! = FirstOf(SortedArray(FilteredArray(PlayersInViewAngle(EventPlayer(), OppositeTeamOf(TeamOf()), 45), HasSpawned() && IsAlive() && IsInLineOfSight(EyePosition(), EyePosition(ArrayElement())) && DistanceBetween(EventPlayer(), ArrayElement()) <= goopling_heal_distance), DistanceBetween(EventPlayer(), ArrayElement())));
+    ModifyVariable(goopling_healing, Operation.AppendToArray, healed);
+    CreateBeamEffect(AllPlayers(), BeamType.GoodBeam, EventPlayer(), healed, Color.Gray, EffectRev.VisibleToPositionAndRadius);
+    ModifyVariable(goopling_healing_effects, Operation.AppendToArray, LastCreatedEntity());
+    return healed;
+}
+
+void GooplingDisconnectHealee(Player player!) {
+    Number index! = IndexOfArrayValue(goopling_healing, player);
+    AbortIf(index == -1);
+    DestroyEffect(goopling_healing_effects[index]);
+    ModifyVariable(goopling_healing, Operation.RemoveFromArrayByIndex, index);
+    ModifyVariable(goopling_healing_effects, Operation.RemoveFromArrayByIndex, index);
+}
+
+rule: "Goopling Healing Module - Start"
+Event.OngoingPlayer
+if(goopling_do_healing)
+if(HasSpawned())
+if(IsAlive())
+{
+    goopling_interval = 0;
+}
+
+rule: "Goopling Healing Module - Do Healing"
+Event.OngoingPlayer
+if(goopling_do_healing)
+if(HasSpawned())
+if(IsAlive())
+{
+    Wait(goopling_heal_time);
+    StartHealOverTime(goopling_healing, EventPlayer(), goopling_heal_time, goopling_healing_dealt);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Entity Type \"Goopling\" - Spawned"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+{
+    SetInvisible(InvisibleTo: InvisibleTo.None);
+    RemoveAllHealthPoolsFromPlayer();
+    goopling_do_healing = true;
+    ForcePlayerHero(Hero: Hero.Moira);
+    AI_name = 'Goopling';
+    MyEnemyType = EnemyType.Minion;
+    StartForcingDummyBotName(EventPlayer(), AI_name);
+    SetMaxHealth(EventPlayer(), 0);
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Health, 100 - HealthOfType(HealthType: HealthType.Health), true, false);
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Shields, 25, true, false);
+    # Cancels hero heal over time passive
+    if(!PassiveHealCancel) {
+        StartHealingModification(EventPlayer(), EventPlayer(), 0, HealingModificationRev.None);
+        PassiveHealCancel = LastHealingModificationID();
+    }
+    SetMaxAmmo(MaxAmmo: 100);
+    SetAmmo(Ammo: 100);
+    SetMoveSpeed(MoveSpeedPercent: goopling_dspd);
+    StartScalingPlayer(Scale: 0.5, Reevaluation: false);
+    ForceThrottle(EventPlayer(), 0, 1, 0, 0, 0, 0);
+    StartHealOverTime(EventPlayer(), null, 0.1, 999999);
+    DisallowButton(EventPlayer(), Button.PrimaryFire);
+    DisallowButton(EventPlayer(), Button.SecondaryFire);
+}
+
+playervar Boolean ai_goopling_latch 18 = false;
+playervar Boolean ai_goopling_latch_jump 19 = false;
+
+rule: "Entity Type \"Goopling\" - Primary Fire : Latch On"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: Button.PrimaryFire))
+if(!ai_goopling_latch)
+if(!ai_using_ability)
+{
+    SetMoveSpeed(MoveSpeedPercent: 0);
+    ApplyImpulse(Direction: DirectionFromAngles(HorizontalFacingAngleOf(), -15), Speed: 40, Relative: Relative.ToWorld);
+    ai_goopling_latch = true;
+    ai_goopling_latch_jump = true;
+    MinWait();
+    ai_using_ability = true;
+}
+
+rule: "Entity Type \"Goopling\" - Latch On Attach"
+Event.OngoingPlayer
+//if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+if(ai_goopling_latch_jump)
+if(ai_goopling_latch)
+if(CountOf(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), DistanceBetween(ArrayElement(), EventPlayer()) <= 4 && IsInLineOfSight(EventPlayer(), ArrayElement()) && !ArrayElement().ai_goopling_latch && !ArrayElement().ai_goopling_latch_jump)) > 0)
+{
+    ai_goopling_latch_jump = false;
+    ai_goopling_latch_player = FirstOf(SortedArray(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), IsInLineOfSight(EventPlayer(), ArrayElement()) && !ArrayElement().ai_goopling_latch && !ArrayElement().ai_goopling_latch_jump), DistanceBetween(ArrayElement(), EventPlayer())));
+    StartForcingPlayerPosition(Position: UpdateEveryFrame(EyePosition(ai_goopling_latch_player) - (FacingDirectionOf() * 0.75)), Reevaluation: true);
+}
+
+rule: "Entity Type \"Goopling\" - Latch On Attached Health Drain"
+Event.OngoingPlayer
+//if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+if(!ai_goopling_latch_jump)
+if(IsAlive(ai_goopling_latch_player))
+if(ai_using_ability)
+{
+    StartDamageOverTime(ai_goopling_latch_player, EventPlayer(), 1, goopling_health_drain_dps);
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Entity Type \"Goopling\" - Latch On Attached Health Drain"
+Event.OnDamageDealt
+//if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+if(!ai_goopling_latch_jump)
+if(Victim() == ai_goopling_latch_player)
+if(ai_goopling_latch)
+if(ai_using_ability)
+{
+    Heal(EventPlayer(), EventPlayer(), EventDamage() * 0.4);
+}
+
+rule: "Entity Type \"Goopling\" - Stop Latch On"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Goopling || MyEntityType == EntityType.NeuralDisruptor)
+if(HasSpawned())
+if(IsDead(ai_goopling_latch_player) || IsDead() || !ai_goopling_latch)
+{
+    ai_using_ability = false;
+    ai_goopling_latch_player = null;
+    ai_goopling_latch = false;
+    ai_goopling_latch_jump = false;
+    StopForcingPlayerPosition(EventPlayer());
+    SetMoveSpeed(MoveSpeedPercent: goopling_dspd * (MyEntityType == EntityType.NeuralDisruptor ? 0.65 : 1));
+}
+
+rule: "Entity Type \"Goopling\" - Cancel Latch On"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(ai_goopling_latch)
+if(IsButtonHeld(EventPlayer(), Button.SecondaryFire))
+{
+    ai_goopling_latch = false;
+    SetStatus(EventPlayer(), null, Status.Invincible, 0.5);
+}
+
+rule: "Entity Type \"Goopling\" - Latch On Hit Ground"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+if(ai_goopling_latch_jump)
+if(ai_using_ability)
+if(IsOnGround())
+{
+    Kill(Killer: EventPlayer());
+}
+
+rule: "AI \"Goopling\" - Think1"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+if(AI_controlled)
+//if(!BossSuppressAI)
+{
+    if(ai_target && !ai_goopling_latch) {
+        Vector d! = DirectionTowards(EyePosition(), EyePosition(ai_target) + (Vector(0, DistanceBetween(EventPlayer(), ai_target)) * 0.35));
+        Vector jumpy! = EyePosition(ai_target) + Vector(0, Min(DistanceBetween(EventPlayer(), ai_target)*3, 145));
+        if(IsInViewAngle(EventPlayer(), jumpy, 40)) {
+            ForceThrottle(EventPlayer(), 0, 1, 0, 0, 0, 0);
+            StartFacing(EventPlayer(), d, 300, Relative.ToWorld);
+        } else {
+            if(!WillFallOffEdge(EyePosition() + (FacingDirectionOf() * 3), 6))
+                ForceThrottle(EventPlayer(), 1, 1);
+            StartFacing(EventPlayer(), DirectionTowards(EyePosition(), EyePosition(ai_target)), 500, Relative.ToWorld);
+        }
+
+        if(VerticalFacingAngleOf() > (VerticalAngleFromDirection(d) - 15) % 360 && VerticalFacingAngleOf() < (VerticalAngleFromDirection(d) + 15) % 360 || DistanceBetween(EventPlayer(), ai_target) <= 4) {
+            PressButton(EventPlayer(), Button.PrimaryFire);
+        }
+    } else {
+        ForceThrottle(EventPlayer(), 0, 1, 0, 0, 0, 0);
+        ai_target = FirstOf(SortedArray(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), IsInLineOfSight(EyePosition(), EyePosition(ArrayElement())) || IsInLineOfSight(EyePosition(), PositionOf(ArrayElement()))), Health(ArrayElement())));
+    }
+    if(DistanceBetween(EventPlayer(), ai_target) <= 4 && RandomInteger(0, ai_skill_level) < 25)
+        PressButton(EventPlayer(), Button.Melee);
+
+    if(WillFallOffEdge(EyePosition() + (InWorldMovement() * 3), 6))
+        ForceThrottle(EventPlayer(), 0, 1, 0, 0, 0, 0);
+    if(!IsInLineOfSight(ai_target, EventPlayer())) {
+        ai_target = null;
+    }
+    Wait(update_tick, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "AI \"Goopling\" - Think 2"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Goopling)
+if(HasSpawned())
+if(IsAlive())
+if(AI_controlled)
+if(IsAlive(ai_target) && ai_target && !ai_goopling_latch)
+if(DistanceBetween(EventPlayer(), ai_target) <= 4)
+//if(!BossSuppressAI)
+{
+    Wait(RandomInteger(0, (100 - ai_skill_level) / 100) * 3.5, WaitBehavior.AbortWhenFalse);
+    PressButton(EventPlayer(), Button.PrimaryFire);
+}

@@ -1,0 +1,107 @@
+
+import "main.del";
+//import "shop.del";
+
+globalvar Boolean CompetitiveMode 17 = WorkshopSettingToggle('Competitive', 'Competitive', true, 0);
+//globalvar Boolean SpeedrunTimerEnabled 49 = WorkshopSettingToggle('Competitive', 'Speedrun', true, 1);
+globalvar Number CompetitiveRanking 18;
+globalvar Number CompetitiveWaveScore 19;
+globalvar Number CompetitiveDamage 23;
+globalvar Number CompetitiveDamageReceived 29;
+globalvar Number TotalHeroEliminated 30;
+globalvar Number TotalMinionEliminated 31;
+globalvar Number TotalMinibossEliminated 32;
+globalvar Number SpeedrunTimer 35;
+Number CompetitiveRankingIncrease: 300;
+Number TeamCountIncrease: 4 / CountOf(AllPlayers(Team.Team1));
+
+void NoKnockdownsCompetitive() "Competitives No Knockdowns"
+{
+    CompetitiveWaveScore += EventDamage() * 0.3;
+}
+
+String PNString(Number num): $'{num<=0 ? "" : "+"}{num}';
+
+rule: "Competitive - Show Damage Dealt"
+Event.OngoingGlobal
+if(CompetitiveMode)
+{
+    CreateHudText(AllPlayers(Team.Team1), $'SR: {CompetitiveRanking}\nRound Rating: {PNString(CompetitiveWaveScore)}', '', '', Location.Left, 0, Color.Purple, Color.Purple, Color.Purple, HudTextRev.VisibleToSortOrderAndString, Spectators.VisibleAlways);
+}
+
+rule: "Enemy - Hero Death Counter"
+Event.OnDeath
+Team.Team2
+if(IsDummyBot())
+if(MyEnemyType == EnemyType.Hero)
+if(Attacker() != null && Attacker() != EventPlayer())
+{
+    TotalHeroEliminated++;
+}
+
+rule: "Enemy - Minion Death Counter"
+Event.OnDeath
+Team.Team2
+if(IsDummyBot())
+if(MyEnemyType == EnemyType.Minion)
+if(Attacker() != null && Attacker() != EventPlayer())
+{
+    TotalMinionEliminated++;
+}
+
+rule: "Enemy - Miniboss Death Counter"
+Event.OnDeath
+Team.Team2
+if(IsDummyBot())
+if(MyEnemyType == EnemyType.MiniBoss)
+if(Attacker() != null && Attacker() != EventPlayer())
+{
+    TotalMinibossEliminated++;
+}
+
+rule: "Competitive - Damage Dealt"
+Event.OnDamageDealt
+Team.Team1
+if(!IsDummyBot())
+//if(CompetitiveMode)
+{
+    CompetitiveWaveScore += (EventDamage() * 6) / MaxAmmo() * TeamCountIncrease;
+    CompetitiveDamage += EventDamage();
+}
+
+rule: "Competitive - Damage Received"
+Event.OnDamageTaken
+Team.Team1
+if(!IsDummyBot())
+//if(CompetitiveMode)
+{
+    CompetitiveWaveScore -= (EventDamage() * 6) / MaxAmmo(Attacker()) * TeamCountIncrease;
+    CompetitiveDamageReceived += EventDamage();
+}
+
+rule: "Competitive - Healing Dealt"
+Event.OnHealingDealt
+Team.Team1
+if(!IsDummyBot())
+//if(CompetitiveMode)
+{
+    CompetitiveWaveScore += EventHealing() * 3.5 * TeamCountIncrease;
+}
+
+rule: "Competitive - Final Blow"
+Event.OnFinalBlow
+Team.Team1
+if(!IsDummyBot())
+//if(CompetitiveMode)
+{
+    CompetitiveWaveScore += 300;
+}
+
+rule: "Competitive - Death"
+Event.OnDeath
+Team.Team1
+if(!IsDummyBot())
+//if(CompetitiveMode)
+{
+    CompetitiveWaveScore -= 20;
+}

@@ -1,0 +1,11 @@
+
+import '../main.del';
+
+rule: "Modifier 'HealSteal' - Damage Dealt Enemy"
+Event.OnHealingDealt
+Team.Team1
+if(HasSpawned())
+if(ArrayContains(MappedArray(ModifiersChoosen, ArrayElement()[0]), Modifier.HealSteal))
+{
+    Heal(PlayersWithinRadius(PositionOf(Healee()), 7, Team.Team2, RadiusLOS.Off), null, EventHealing() * 0.4 * GetModifier(Modifier.HealSteal)[1]);
+}

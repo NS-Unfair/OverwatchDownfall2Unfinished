@@ -1,0 +1,2 @@
+The players rise up and their health is low. They must regain health through dealing damage or they will die. All healing except damage passive for all heroes healing is canceled.
+=================

@@ -1,0 +1,112 @@
+import "../../main.del";
+
+globalvar Number CentrySufferDebuff;
+globalvar Number CentrySufferDebuffNext;
+globalvar Number CentrySufferDpsCalc;
+
+rule: "Suffer Centry - Debuff 1 : Damage Reduced"
+Team.Team1
+Event.OngoingPlayer
+if(BossCurrentCentry == Centry.Suffer)
+if(CentrySufferDebuff == null)
+{
+    SetDamageDealt(EventPlayer(), 50 * PlayerDamageModifier);
+    SetHealingDealt(EventPlayer(), 100);
+    SetHealingReceived(EventPlayer(), 100);
+    SetAimSpeed(EventPlayer(), 100);
+    SetMoveSpeed(EventPlayer(), 100);
+    SetGravity(EventPlayer(), 100);
+}
+
+rule: "Suffer Centry - Debuff 2 : Healing Reduced"
+Team.Team1
+Event.OngoingPlayer
+if(BossCurrentCentry == Centry.Suffer)
+if(CentrySufferDebuff == 1)
+{
+    SetDamageDealt(EventPlayer(), 100 * PlayerDamageModifier);
+    SetHealingDealt(EventPlayer(), 50);
+    SetHealingReceived(EventPlayer(), 50);
+    SetAimSpeed(EventPlayer(), 100);
+    SetMoveSpeed(EventPlayer(), 100);
+    SetGravity(EventPlayer(), 100);
+}
+
+rule: "Suffer Centry - Debuff 3 : Speed Reduced"
+Team.Team1
+Event.OngoingPlayer
+if(BossCurrentCentry == Centry.Suffer)
+if(CentrySufferDebuff == 2)
+{
+    SetDamageDealt(EventPlayer(), 100 * PlayerDamageModifier);
+    SetHealingDealt(EventPlayer(), 100);
+    SetHealingReceived(EventPlayer(), 100);
+    SetAimSpeed(EventPlayer(), 75);
+    SetMoveSpeed(EventPlayer(), 75);
+    SetGravity(EventPlayer(), 200);
+}
+
+rule: "Suffer Centry : Player - Debuff Beam"
+Team.Team1
+Event.OngoingPlayer
+if(BossCurrentCentry == Centry.Suffer)
+{
+    CreateBeamEffect(AllPlayers(), BeamType.BadBeam, EyePosition(), BossPosition, CentrySufferDebuff == 2 ? Color.Blue : (CentrySufferDebuff ? Color.Yellow : Color.Red), EffectRev.VisibleToPositionRadiusAndColor);
+}
+
+rule: "Suffer Centry : Player - Damage Dealt"
+Team.Team1
+Event.OnDamageDealt
+if(BossCurrentCentry == Centry.Suffer)
+{
+    CentrySufferDebuffNext = 0;
+}
+
+rule: "Suffer Centry : Player - Damage Taken"
+Team.Team1
+Event.OnDamageTaken
+if(BossCurrentCentry == Centry.Suffer)
+{
+    CentrySufferDebuffNext = 2;
+}
+
+
+rule: "Suffer Centry : Player - Healing Dealt"
+Team.Team1
+Event.OnHealingDealt
+if(BossCurrentCentry == Centry.Suffer)
+{
+    CentrySufferDebuffNext = 1;
+}
+
+rule: "Suffer Centry - Choose Debuff"
+if(BossCurrentCentry == Centry.Suffer)
+{
+    Wait(3, WaitBehavior.AbortWhenFalse);
+    CentrySufferDebuff = CentrySufferDebuffNext;
+    LoopIfConditionIsTrue();
+}
+
+rule: "Suffer Centry - Slowly Health"
+if(BossCurrentCentry == Centry.Suffer)
+if(BossHP > 0)
+{
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    BossHP += 40 * CountOf(GetSpawnedEnemies()) / GamePlayerMultiplier;
+    ModifyVariable(BossHP, Operation.Min, BossMaxHP);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Suffer Centry - Phase 2"
+if(BossCurrentCentry == Centry.Suffer)
+if(BossHP <= 0)
+{
+    BigMessage(AllPlayers(Team.Team1), "IT IS STILL WHOLE");
+    BigMessage(AllPlayers(Team.Team1), "MAKE THEM ONLY ONE");
+    MakeNewWave(20);
+    WaitUntil(CountOf(GetSpawnedEnemies()) == 0, 9999);
+    EnemyGroupSpawnQueue = [];
+    BossCentryEffects = [];
+    BossCurrentCentry = Centry.Agony;
+    BossCentryName = "Agony";
+}

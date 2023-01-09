@@ -1,0 +1,33 @@
+
+import "../main.del";
+
+globalvar Vector[] GoopSpawns 0;
+globalvar Vector[] PlayerSpawns 15;
+globalvar Vector[] ActiveSpawns 1 = [];
+Number cmd_waitspawn_ignore: -1;
+
+rule: "Team 2 - Choose active spawns" 5 {
+
+}
+
+rule: "Team 1 - Waiting Spawn" 5
+Event.OngoingPlayer
+Team.Team1
+if(HasSpawned())
+if(CurrentGameState == GameState.Waiting)
+{
+    if(WaitSpawns == cmd_waitspawn_ignore)
+        Teleport(EventPlayer(), RandomValueInArray(PlayerSpawns));
+    else
+        Teleport(EventPlayer(), RandomValueInArray(WaitSpawns));
+}
+
+rule: "Team 1 - Player Spawn" 5
+Event.OngoingPlayer
+Team.Team1
+if(HasSpawned())
+if(CurrentGameState == GameState.Play)
+if(WaitSpawns != cmd_waitspawn_ignore)
+{
+    Teleport(EventPlayer(), RandomValueInArray(PlayerSpawns));
+}

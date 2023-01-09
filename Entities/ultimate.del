@@ -1,0 +1,42 @@
+
+import "../main.del";
+
+playervar Boolean ai_custom_ultimate;
+playervar Boolean ai_using_custom_ultimate;
+playervar Boolean ai_suppress_ultimate_charge;
+playervar Number ai_ultimate_charge = 0;
+playervar Number ai_ultimate_needed = 1000;
+
+rule: "AI Ultimate - Time"
+Event.OnDamageDealt
+if(HasSpawned())
+if(IsAlive())
+if(ai_custom_ultimate)
+if(!ai_suppress_ultimate_charge)
+{
+    # https://www.youtube.com/watch?v=ri72f2aQpm8 was useful
+    # when making this ultimate charge code
+    Wait(1 / 5, WaitBehavior.AbortWhenFalse);
+    ai_ultimate_charge += 1;
+    LoopIfConditionIsTrue();
+}
+
+rule: "AI Ultimate - Damage Dealt"
+Event.OnDamageDealt
+if(HasSpawned())
+if(IsAlive())
+if(ai_custom_ultimate)
+if(!ai_suppress_ultimate_charge)
+{
+    ai_ultimate_charge += EventDamage();
+}
+
+rule: "AI Ultimate - Healing Dealt"
+Event.OnHealingDealt
+if(HasSpawned())
+if(IsAlive())
+if(ai_custom_ultimate)
+if(!ai_suppress_ultimate_charge)
+{
+    ai_ultimate_charge += EventHealing();
+}

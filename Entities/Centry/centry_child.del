@@ -1,0 +1,5 @@
+rule: ""
+Event.OngoingPlayer
+{
+    Wait(2, WaitBehavior.IgnoreCondition);
+}

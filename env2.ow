@@ -1,0 +1,380 @@
+settings
+{
+	main
+	{
+		Description: "Miporation (Miporate, meaning unofficially doing an unplanned/underplanned operation) is an endless gamemode where you get as many tasks done as possible while enemies tries to stop your team."
+	}
+
+	lobby
+	{
+		Map Rotation: After A Game
+		Match Voice Chat: Enabled
+		Return To Lobby: After A Game
+		Swap Teams After Match: No
+	}
+
+	modes
+	{
+		Skirmish
+		{
+			disabled maps
+			{
+				Workshop Chamber
+				Workshop Expanse
+				Workshop Expanse Night
+				Workshop Green Screen
+				Workshop Island
+				Workshop Island Night
+			}
+		}
+
+		disabled Team Deathmatch
+		{
+			Allow Hero Switching: Off
+			Enemy Health Bars: On
+			Game Length In Minutes: 15
+			Game Mode Start: Manual
+			Health Pack Respawn Time Scalar: 10%
+			Hero Limit: Off
+			Imbalanced Team Score To Win: On
+			Kill Cam: On
+			Kill Feed: On
+			Limit Roles: Off
+			Mercy Resurrect Counteracts Kills: Off
+			Respawn As Random Hero: Off
+			Respawn Time Scalar: 100%
+			Score To Win: 1
+			Skins: On
+			Spawn Health Packs: Enabled
+			Team 1 Score To Win: 200
+			Team 2 Score To Win: 200
+		}
+	}
+}
+
+variables
+{
+	player:
+		0: player_necro_select
+		1: player_necro_money
+		6: MyEntityType
+		21: Average_Peak
+		24: DPS_Array
+		25: Damage_Per_Second
+}
+
+rule("Entity Type \"Finisher\" - Spawned")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Has Spawned(Event Player) == True;
+		Is Alive(Event Player) == True;
+	}
+
+	actions
+	{
+		Remove All Health Pools From Player(Event Player);
+		Start Forcing Dummy Bot Name(Event Player, Custom String("Finisher"));
+		Start Forcing Player To Be Hero(Event Player, Hero(Soldier: 76));
+		Disallow Button(Event Player, Button(Primary Fire));
+		Set Max Health(Event Player, 250);
+		Set Move Speed(Event Player, 130);
+		Disallow Button(Event Player, Button(Secondary Fire));
+		Set Max Ammo(Event Player, 0, 8);
+		Set Ammo(Event Player, 0, 8);
+		Add Health Pool To Player(Event Player, Armor, 200, True, True);
+		Disallow Button(Event Player, Button(Reload));
+		Disallow Button(Event Player, Button(Ability 2));
+	}
+}
+
+rule("Entity Type \"Finisher\" - Primary")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Is Button Held(Event Player, Button(Primary Fire)) == True;
+		Ammo(Event Player, 0) > 0;
+		Is Reloading(Event Player) == False;
+	}
+
+	actions
+	{
+		If(!Event Player.player_necro_money);
+			Set Ammo(Event Player, 0, Ammo(Event Player, 0) - 1);
+			Allow Button(Event Player, Button(Secondary Fire));
+			Event Player.player_necro_money = True;
+			Event Player.player_necro_select = Ability Cooldown(Event Player, Button(Secondary Fire));
+			Set Damage Dealt(Event Player, 30);
+			Set Projectile Speed(Event Player, 9999);
+			Set Ability Cooldown(Event Player, Button(Secondary Fire), 0);
+			Press Button(Event Player, Button(Secondary Fire));
+			Set Ability Cooldown(Event Player, Button(Secondary Fire), Event Player.player_necro_select);
+			Wait(0.016, Ignore Condition);
+			Event Player.player_necro_money = False;
+			Disallow Button(Event Player, Button(Secondary Fire));
+			Wait(0.500, Ignore Condition);
+			Loop If Condition Is True;
+	}
+}
+
+rule("Rule 3")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Custom String("{0}", Event Player) == Custom String("UnfairDev");
+	}
+
+	actions
+	{
+		Event Player.MyEntityType = 2;
+	}
+}
+
+rule("Entity Type \"Finisher\" - Ability 2")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Is Button Held(Event Player, Button(Ability 2)) == True;
+		Event Player.player_necro_money != True;
+		Ability Cooldown(Event Player, Button(Ability 2)) == 0;
+	}
+
+	actions
+	{
+		Set Move Speed(Event Player, 50);
+		Set Ability Cooldown(Event Player, Button(Ability 2), 6);
+		Event Player.player_necro_money = True;
+		Start Heal Over Time(Event Player, Event Player, 2, 25 * Ammo(Event Player, 0));
+		Set Ammo(Event Player, 0, 0);
+		Event Player.player_necro_money = False;
+		Set Reload Enabled(Event Player, False);
+		Wait(3, Ignore Condition);
+		Set Reload Enabled(Event Player, True);
+		Set Move Speed(Event Player, 130);
+	}
+}
+
+rule("Entity Type \"Finisher\" - Melee")
+{
+	event
+	{
+		Player Dealt Damage;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Is Meleeing(Event Player) == True;
+	}
+
+	actions
+	{
+		Set Status(Victim, Event Player, Knocked Down, 1.450);
+		Damage(Victim, Event Player, 70 - Event Damage);
+		Apply Impulse(Victim, Direction From Angles(Horizontal Facing Angle Of(Event Player), 25), 30, To World, Cancel Contrary Motion);
+		Wait(0.160, Ignore Condition);
+	}
+}
+
+rule("Rule 6")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Ammo(Event Player, 0) == Max Ammo(Event Player, 0);
+	}
+
+	actions
+	{
+		Allow Button(Event Player, Button(Melee));
+	}
+}
+
+rule("Rule 6")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Ammo(Event Player, 0) < Max Ammo(Event Player, 0);
+	}
+
+	actions
+	{
+		Disallow Button(Event Player, Button(Melee));
+	}
+}
+
+rule("Entity Type \"Finisher\" - Melee but can't")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Is Button Held(Event Player, Button(Melee)) == True;
+		Ammo(Event Player, 0) < Max Ammo(Event Player, 0);
+	}
+
+	actions
+	{
+		While(!Is Meleeing(Event Player));
+			If(!Is Reloading(Event Player) && Ammo(Event Player, 0) < Max Ammo(Event Player, 0));
+				Allow Button(Event Player, Button(Reload));
+				Press Button(Event Player, Button(Reload));
+				Disallow Button(Event Player, Button(Reload));
+			End;
+			Press Button(Event Player, Button(Melee));
+			Wait(0.160, Ignore Condition);
+		End;
+	}
+}
+
+rule("Entity Type \"Finisher\" - Melee")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.MyEntityType == 2;
+		Is Meleeing(Event Player) == True;
+	}
+
+	actions
+	{
+		Set Ammo(Event Player, 0, Max Ammo(Event Player, 0) / 4);
+	}
+}
+
+rule("Rule 10")
+{
+	event
+	{
+		Player Dealt Damage;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.Damage_Per_Second += Event Damage;
+	}
+}
+
+rule("Rule 11")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Wait(1, Ignore Condition);
+		Modify Player Variable(Event Player, DPS_Array, Append To Array, Event Player.Damage_Per_Second);
+		Event Player.Damage_Per_Second = 0;
+		Event Player.X = 0;
+		For Player Variable(Event Player, W, 0, Count Of(Event Player.DPS_Array) - 1, 1);
+			Event Player.X += Event Player.DPS_Array[Event Player.W];
+		End;
+		Event Player.X /= Count Of(Event Player.DPS_Array);
+		Event Player.Average_Peak = Max(Event Player.Average_Peak, Event Player.X);
+		Loop;
+	}
+}
+
+rule("Rule 12")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Create HUD Text(Event Player, Event Player.Average_Peak, Null, Null, Left, 0, Color(Red), Color(White), Color(White),
+			Visible To and String, Default Visibility);
+	}
+}
+
+rule("Rule 13")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Count Of(Event Player.DPS_Array) > 10;
+	}
+
+	actions
+	{
+		Modify Player Variable(Event Player, DPS_Array, Remove From Array By Index, 0);
+		Wait(0.250, Abort When False);
+		Loop If Condition Is True;
+	}
+}

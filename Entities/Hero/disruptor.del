@@ -1,0 +1,56 @@
+import "../../main.del";
+
+// Role: Support
+
+rule: "Entity Type \"NeuralDisruptor\" - Spawned"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(MyEntityType == EntityType.NeuralDisruptor)
+{
+    # Cancels hero heal over time passive
+    if(!PassiveHealCancel) {
+        StartHealingModification(EventPlayer(), EventPlayer(), 0, HealingModificationRev.None);
+        PassiveHealCancel = LastHealingModificationID();
+    }
+    DisallowButton(EventPlayer(), Button.PrimaryFire);
+    AllowButton(EventPlayer(), Button.SecondaryFire);
+    SetInvisible(InvisibleTo: InvisibleTo.None);
+    RemoveAllHealthPoolsFromPlayer();
+    AI_name = 'Neural Disruptor';
+    MyEnemyType = EnemyType.Hero;
+    StartForcingDummyBotName(EventPlayer(), AI_name);
+    ForcePlayerHero(EventPlayer(), Hero.Kiriko);
+    SetMaxHealth(EventPlayer(), 0);
+    SetKnockbackDealt(KnockbackDealtPercent: 0);
+    SetMoveSpeed(EventPlayer(), goopling_dspd * 0.65);
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Health, 300 - HealthOfType(HealthType: HealthType.Health), true, false);
+    StartScalingPlayer(Scale: 0.8, Reevaluation: false);
+    StartHealOverTime(EventPlayer(), null, 0.1, 999999);
+
+    MinWait();
+    ai_actual_max_health = Health();
+}
+
+rule: "Entity Type \"NeuralDisruptor\" - Ability 1"
+Event.OngoingPlayer
+if(HasSpawned())
+if(IsAlive())
+if(MyEntityType == EntityType.NeuralDisruptor)
+if(IsButtonHeld(EventPlayer(), Button.Ability1))
+{
+    SetStatus(PlayersWithinRadius(EyePosition(), 8, OppositeTeamOf(TeamOf())), EventPlayer(), Status.Hacked, 3);
+    SetStatus(PlayersWithinRadius(EyePosition(), 6, OppositeTeamOf(TeamOf())), EventPlayer(), Status.Stunned, 0.5);
+}
+
+rule: "Entity Type \"NeuralDisruptor\" - Melee"
+Event.OnDamageDealt
+if(HasSpawned())
+if(IsAlive())
+if(MyEntityType == EntityType.NeuralDisruptor)
+if(IsMeleeing())
+{
+    DisallowButton(EventPlayer(), Button.Melee);
+    ai_goopling_latch_player = Victim();
+    StartForcingPlayerPosition(Position: UpdateEveryFrame(EyePosition(Victim()) - (FacingDirectionOf() * 0.75)), Reevaluation: true);
+}

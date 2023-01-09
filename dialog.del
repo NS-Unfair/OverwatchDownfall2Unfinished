@@ -1,0 +1,33 @@
+import "main.del";
+
+globalvar Boolean show_dialog 9 = false;
+globalvar String dialog_string 8 = '';
+globalvar String dialog_icon = HeroIconString(Hero.Reaper);
+globalvar String dialog_name = 'Seeker';
+
+rule: "Dialog - Initial" {
+    CreateHudText(FilteredArray(AllPlayers(), show_dialog), dialog_icon, dialog_name, dialog_string);
+}
+
+void PlayArrayDialog(String Dialog!, Number TalkSpeed! = 0.04, Number DialogDelay = 2.5) {
+    for (define i = 0; CountOf(Dialog); 1)
+    {
+        PlayDialog(Dialog[i], TalkSpeed, DialogDelay);
+    }
+}
+
+void PlayDialog(String Dialog!, Number TalkSpeed! = 0.04, Number DialogDelay = 2.5) {
+    define dialog! = StringSplit(Dialog, '\n');
+    define dialog_sync! = 0;
+    show_dialog = true;
+    while (CountOf(dialog) > 0) {
+        dialog_string = '';
+        while (StringLength(dialog_string) < StringLength(dialog[0])) {
+            dialog_string = $"{dialog_string}{StringSlice(dialog[0], StringLength(dialog_string), RoundToInteger(0.16 / TalkSpeed, Rounding.Up))}";
+            dialog_sync = (Max(TalkSpeed - dialog_sync, 0.16) - TalkSpeed) % 0.16;
+            Wait(Max(TalkSpeed + dialog_sync, 0.16));
+        }
+        Wait(DialogDelay);
+        ModifyVariable(dialog, Operation.RemoveFromArrayByIndex, 0);
+    }
+}

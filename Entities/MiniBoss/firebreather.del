@@ -1,0 +1,75 @@
+import "../../main.del";
+
+rule: "Entity Type \"FireBreather\" - Spawned"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.FireBreather)
+if(HasSpawned())
+if(IsAlive())
+{
+    StopHealingModification(PassiveHealCancel);
+    PassiveHealCancel = null;
+    
+    RemoveAllHealthPoolsFromPlayer();
+    SetInvisible(EventPlayer(), InvisibleTo.None);
+    SetMaxHealth(EventPlayer(), 0);
+    SetKnockbackReceived(KnockbackReceivedPercent: 60);
+    SetDamageDealt(EventPlayer(), 100);
+    DisallowButton(Button: Button.SecondaryFire);
+    DisallowButton(Button: Button.Ability1);
+    DisallowButton(Button: Button.Ability2);
+    DisallowButton(Button: Button.Melee);
+    DisallowButton(Button: Button.Reload);
+    DevaslatorLazerButton = Button.Ability1;
+
+    devaslator_overheat = 0;
+    
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Health, 1500 - HealthOfType(HealthType: HealthType.Health), true, false);
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Armor, 2750 - HealthOfType(HealthType: HealthType.Armor), true, false);
+
+    MyEnemyType = EnemyType.MiniBoss;
+
+    ForcePlayerHero(Hero: Hero.WreckingBall);
+    SetAmmo(Ammo: 999);
+    StartScalingPlayer(EventPlayer(), 0.75, false);
+    AI_name = 'EntityType.FireBreather';
+
+    StartForcingDummyBotName(EventPlayer(), AI_name);
+    StartHealOverTime(EventPlayer(), null, 0.1, 999999);
+
+    MinWait();
+    ai_actual_max_health = Health();
+}
+
+rule: "Entity Type \"FireBreather\" - Primary Fire"
+Event.OnDamageDealt
+if(MyEntityType == EntityType.FireBreather)
+if(HasSpawned())
+if(IsAlive())
+if(IsFiringPrimary())
+{
+    SetStatus(EventPlayer(), EventPlayer(), Status.Burning, 1.5);
+}
+
+rule: "Entity Type \"FireBreather\" - Primary Fire Burn"
+Event.OnDamageDealt
+if(MyEntityType == EntityType.FireBreather)
+if(HasSpawned())
+if(IsAlive())
+if(EventAbility() == Button.PrimaryFire) 
+{
+    SetStatus(Victim(), EventPlayer(), Status.Burning, 1);
+    StartDamageOverTime(Victim(), EventPlayer(), 1, 20);
+    Wait(1);
+}
+
+rule: "Entity Type \"FireBreather\" - Infinite Ammo"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.FireBreather)
+if(HasSpawned())
+if(IsAlive())
+if(Ammo() < MaxAmmo())
+{
+    SetAmmo(Ammo: 999);
+    Wait(0.25);
+    LoopIfConditionIsTrue();
+}

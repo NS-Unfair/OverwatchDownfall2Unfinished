@@ -1,0 +1,62 @@
+import "main.del";
+
+globalvar Number challenge_wave = WorkshopSettingCombo('Challenges', "Challenge", 0, ['None', 'Behind You | TDM Dorado Night'], 0);
+
+rule: "Challenge Wave Override : Behind You"
+if(CurrentMap() == Map.Dorado)
+if(challenge_wave == 1)
+{
+    PlayerSpawns = [Vector(19.31, 0.01, -31.11)];
+    # Set this to the \"cmd_waitspawn_ignore\" constant
+    WaitSpawns = cmd_waitspawn_ignore;
+    GameMapName = 'Challenge: Behind You';
+    MapNoNecro = 2;
+    SuppressNewWave = true;
+    GroupSpawnMultiplier = 3;
+    AlwaysGoopSpawnsAtEnemy = true;
+}
+
+rule: "Challenge Wave : Behind You - Progression"
+if(CurrentMap() == Map.Dorado)
+if(challenge_wave == 1)
+if(CurrentGameState == GameState.Play)
+{
+    EnemyGroupSpawnQueue = [
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3],
+        [[EntityType.Goopling, EntityType.Goopling, EntityType.Goopling], 3]
+    ];
+    Wait(30);
+    BigMessage(AllPlayers(), "Wave 2");
+    CompetitiveRanking += CompetitiveWaveScore;
+    CompetitiveWaveScore = 0;
+    ModifiersChoosen = [
+        [Modifier.Breaker, 1]
+    ];
+    MkModifierString();
+    Wait(30);
+    WaitUntil(EnemyGroupSpawnQueue == [], 9999);
+    BigMessage(AllPlayers(), "Wave 2");
+}
+
+rule: "Challenge Wave : Behind You - Spawn Enemies"
+if(CurrentMap() == Map.Dorado)
+if(challenge_wave == 1)
+if(CurrentGameState == GameState.Play)
+{
+    define spwn! = EyePosition(RandomValueInArray(GetGamePlayers(Team.Team1))) + (DirectionFromAngles(RandomReal(0, 360)) * 3);
+    Wait(2, WaitBehavior.AbortWhenFalse);
+    LoopIf(CountOf(FilteredArray(GetGamePlayers(Team.Team1), DistanceBetween(ArrayElement(), spwn) <= 5)) > 0);
+    define ent! = SpawnEnemy(Vector(Y: 99999), EntityType.Challenge_Sombra);
+    if(ent) {
+        Wait(0.5);
+        Teleport(ent, spwn);
+    }
+    LoopIfConditionIsTrue();
+}

@@ -1,0 +1,132 @@
+
+import "../main.del";
+
+enum EntityType {
+    None,
+    Unspawned,
+    Finisher,
+    Necro,
+    Goopling,
+    Goopling_Big,
+    Turret,
+    Devaslator,
+    Devastator,
+    Matrix,
+    NeuralDisruptor,
+    VengefulSpirit,
+    Challenge_Sombra,
+    Broker,
+    ShieldBreaker,
+    ScriptedObject,
+    FireBreather
+}
+
+enum EnemyType {
+    None,
+    Minion,
+    Hero,
+    MiniBoss,
+    SubBoss,
+    Boss,
+    Gadget,
+    Centry
+}
+
+globalvar EntityType[][] EntityEnemyTypes = [
+    [], // None
+    [EntityType.Goopling], // Minion
+    [EntityType.Finisher], // Hero
+    [EntityType.Devaslator], // MiniBoss
+    [], // Boss
+    [EntityType.Turret, EntityType.Matrix] // Gadget
+];
+
+playervar EntityType MyEntityType 8;
+playervar EnemyType MyEnemyType 12 = EnemyType.None;
+
+playervar Number EntityVariant = 0;
+playervar Any PassiveHealCancel 25;
+playervar Boolean ai_cheat_death 26;
+
+// AI Variables
+playervar String AI_name;
+playervar Boolean AI_controlled 2 = false;
+playervar Player ai_target 9;
+playervar Player ai_assist 22;
+playervar Player was_ai_target 11;
+playervar Boolean ai_using_ability 6 = false;
+playervar Number ai_secondary_cooldown_bk 5 = 0;
+playervar Vector ai_target_disappear_vec 10;
+playervar Vector ai_aim_offset;
+
+Boolean AICanMove(Player player = EventPlayer()): !(HasStatus(player, Status.Asleep) || HasStatus(player, Status.KnockedDown) || HasStatus(player, Status.Stunned));
+Boolean CanUseAbilities(Player player  = EventPlayer()): !HasStatus(player, Status.Hacked) && AICanMove(player);
+
+rule: "Enemy Death" 9999
+Event.OnDeath
+Team.Team2
+if(!ai_cheat_death)
+{
+    MinWait();
+    MyEntityType = EntityType.Unspawned;
+}
+
+rule: "Player Death Show Hud" 9999
+Event.OnDeath
+Team.Team1
+if(MyEnemyType == EnemyType.None)
+{
+    EnableKillFeed(AllPlayers());
+}
+
+rule: "Enemy Death Show Hud" 9999
+Event.OnDeath
+Team.Team2
+if(MyEnemyType == EnemyType.MiniBoss || MyEnemyType == EnemyType.Hero)
+{
+    EnableKillFeed(AllPlayers());
+}
+
+rule: "Enemy Death Hide Hud" 9999
+Event.OnDeath
+Team.Team2
+if(MyEnemyType == EnemyType.Minion)
+{
+    DisableKillFeed(AllPlayers());
+}
+
+// Ai Stuff
+playervar Vector ai_aim_pos;
+playervar Number ai_actual_max_health;
+
+Number ai_weapon_accuracy_spread: 1.5;
+Number CalcAiAccuracy(): RandomReal(1, ((((ai_weapon_accuracy_spread-1) * 0.01) * (ai_skill_level-100)))+1);
+Vector InWorldMovement(Player play = EventPlayer()): Vector(SpeedOfInDirection(play, Left()), SpeedOfInDirection(play, Up()), SpeedOfInDirection(play, Forward()));
+Boolean LowHealth(Player play = EventPlayer()): Health(play) < (ai_actual_max_health ? ai_actual_max_health : MaxHealth(play)) * 0.3;
+
+//import "ultimate.del";
+
+import "unspawned.del";
+
+// Imports
+    // Boss
+
+    // Mini-Boss
+    import "MiniBoss/devaslator.del";
+    //import "MiniBoss/devastator.del";
+    import "MiniBoss/firebreather.del";
+    import "MiniBoss/broker.del";
+
+    // Hero
+    import "Hero/finisher.del";
+    import "Hero/disruptor.del";
+
+    // Minion
+    import "Minion/goopling.del";
+
+    // Gadget
+    import "Gadget/turret.del";
+
+    // Map-Specific Special Gadgets
+    //import "Gadget/vengeful_spirit.del";
+    //import "Challenge/sombra.del";

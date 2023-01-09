@@ -1,0 +1,9 @@
+globalvar String[] CMD_in 36 = [
+    
+];
+
+rule: "CMD Load"
+if(CMD_in != null)
+{
+
+}

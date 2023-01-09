@@ -1,0 +1,38 @@
+
+import "../main.del";
+
+rule: "Map - Fortificación (Havana)"
+if(CurrentMap() == Map.Havana)
+{
+    GoopSpawns = [Vector(4.14, 12.01, 21.03), Vector(40.88, 8, 9.77), Vector(19.69, 11.99, -8.03), Vector(15.9, 5.95, -6.12), Vector(41.56, 11.9, -15.46), Vector(39.72, 5.92, -14.72)];
+    PlayerSpawns = [Vector(-13.67, 5.96, -18.38)];
+    WaitSpawns = [Vector(199.49, 9.97, -32.42)];
+    # Fortification map
+    GameMapName = 'Fortificación';
+    MapNightmareSettings = MapNightmareType.StoryAndNightmare;
+    MapNoNecro = 1;
+    //secret_rift_position = Vector(21.53, 5.97, -43.46);
+    # Second Letter in Code
+    //secret_rift_code = 'u';
+    BoundsMaxY = 19;
+    CreateInWorldText(AllPlayers(Team.Team1), "COWARD", Vector(19.14, 7, 5.54), 0.8, Clipping.ClipAgainstSurfaces, InworldTextRev.VisibleTo, Color.Red, Spectators.VisibleNever);
+}
+
+rule: "Havana Secret - Coward Debuff"
+Event.OngoingPlayer
+Team.Team1
+if(HasSpawned())
+if(IsAlive())
+if(CurrentMap() == Map.Havana)
+if(IsInLineOfSight(EventPlayer(), Vector(15.7, 5.99, 6.51)) && !IsInLineOfSight(EventPlayer(), Vector(13.47, 5.99, -1.9)))
+{
+    Wait(3);
+    WaitUntil(IsInLineOfSight(EventPlayer(), Vector(15.7, 5.99, 6.51)) && !IsInLineOfSight(EventPlayer(), Vector(13.47, 5.99, -1.9)), 99999);
+    BigMessage(EventPlayer(), "Coward");
+    CompetitiveRanking *= CompetitiveRanking < 0 ? 10 : -10;
+    CompetitiveWaveScore *= CompetitiveWaveScore < 0 ? 10 : -10;
+    SetStatus(EventPlayer(), null, Status.Asleep, 9999);
+    SetStatus(EventPlayer(), null, Status.Hacked, 9999);
+    Wait(2);
+    Teleport(GetLivingEnemies(), EventPlayer());
+}

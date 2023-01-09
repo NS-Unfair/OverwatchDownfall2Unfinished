@@ -1,0 +1,3 @@
+import "main.del";
+
+globalvar Vector[] WaitSpawns 22;

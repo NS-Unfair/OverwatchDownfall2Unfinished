@@ -1,0 +1,11 @@
+
+import "../main.del";
+
+globalvar define meshes 2 = [];
+
+rule: "Navigate" 6
+Event.OngoingPlayer
+if(AI_controlled)
+{
+    
+}

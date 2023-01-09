@@ -1,0 +1,13 @@
+import "../main.del";
+
+globalvar String[] PKD_compress;
+globalvar String[] PKD_lookup = StringSplit("0123456789abcdefghijklmnopqrstuvwxyz𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻!@#$%^&*()-+_=[{}]|?/.,~`\"'\n\r;:<>", '');
+
+rule: "PKD Decompress"
+if(PKD_compress)
+{
+    while (CountOf(PKD_compress) > 0) {
+        define data! = [];
+
+    }
+}

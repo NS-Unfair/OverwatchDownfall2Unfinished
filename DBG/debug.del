@@ -1,0 +1,29 @@
+
+import "../main.del";
+
+rule: "DBG"
+Event.OngoingPlayer
+Team.All
+if("{0}".Format([Team.Team1]) == '$DBG@EDIT')
+{
+    CreateProgressBarHudText(EventPlayer(), 0, $'[{XOf(PositionOf())}, {YOf(PositionOf())}, {ZOf(PositionOf())}]', Location.Top, 1000, Color.Aqua, Color.Aqua, ProgressBarHudEvaluation.VisibleToValuesAndColor, Spectators.VisibleNever);
+    DisableMovementCollisionWithEnvironment(EventPlayer(), false);
+    SetStatus(EventPlayer(), null, Status.PhasedOut, 9999);
+    MinWait();
+    EnableRespawning();
+}
+
+rule: "DBG"
+if("{0}".Format([Team.Team1]) == '$DBG@EDIT')
+{
+    SuppressStart = true;
+    SetObjectiveDescription(AllPlayers(), "Debug Mode", HudTextRev.VisibleToAndString);
+}
+
+rule: "DBG"
+Event.OngoingPlayer
+Team.Team1
+if("{0}".Format([Team.Team1]) == '$ENT@TEST')
+{
+    MyEntityType = EntityType.FireBreather;
+}

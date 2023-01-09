@@ -1,0 +1,15 @@
+import "map.definition.del";
+
+globalvar Number | String BoundsMaxY = '';
+
+rule: "Out of Bounds"
+Event.OngoingPlayer
+Team.Team1
+if(CurrentGameState == GameState.Play)
+if(BoundsMaxY != '' && YOf(PositionOf()) >= BoundsMaxY)
+{
+    BigMessage(EventPlayer(), "Out of Bounds");
+    Wait(3, WaitBehavior.AbortWhenFalse);
+    Damage(EventPlayer(), null, MaxHealth() / 2);
+    LoopIfConditionIsTrue();
+}

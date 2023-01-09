@@ -1,0 +1,21 @@
+
+import "../main.del";
+
+globalvar Number escalation 13 = 0;
+globalvar Number escalation_prev 20 = 0;
+globalvar Number escalation_speed 14 = 0.025;
+
+rule: "Escalation - Escalate"
+if(CurrentGameState == GameState.Play)
+{
+    escalation_prev = escalation;
+    ChaseVariableOverTime(escalation, escalation_prev + escalation_speed, 1, TimeChaseReevaluation.DestinationAndDuration);
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Escalation - Stop Escalation"
+if(CurrentGameState == GameState.Play)
+{
+    StopChasingVariable(escalation);
+}

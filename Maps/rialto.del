@@ -1,0 +1,19 @@
+
+import "../main.del";
+
+rule: "Map - Canal Grande (Rialto)"
+if(CurrentMap() == Map.Rialto)
+{
+    # canal grande\r-~*_$/-<*_%/-<.#_&&-~!_&!-<*_%/-<.#_&&-./_/$-<*_%/-<.#_&&-./_/$-<*_%/-<.#_&&*<%_/.-<!_%/-<._/%-&|_/&-<!_%/-!#_/|-&._~|-%_./-$*_&&-<%%_*&-<!_%/-&._|.-%|_&|-&_./-$~_!#-/_*/-<!_%/-!._/$-<#_%#-&_./-&&_##;^&|_%$-<!_%/-!~_!#;
+    WaitSpawns = [Vector(80.35, -0.25, -79.44), Vector(81.41, -0.25, -79.44), Vector(75.53, -0.25, -79.44), Vector(75.53, -0.25, -79.44)];
+    GoopSpawns = [Vector(-2.57, -1.25, -7.52), Vector(46.54, -1.25, 19.56), Vector(47.86, 2.75, 30.44), Vector(-22.04, -1.25, 47.67), Vector(26.46, 4.75, 38.19), Vector(5.05, -1.25, 17.53), Vector(-9.29, 4.75, 44.99)];
+    //PlayerSpawns = [Vector(46.23, -1.25, 18.19)];
+    PKD_compress = '';
+    # Grand Canal map
+    GameMapName = 'Canal Grande';
+    MapNightmareSettings = MapNightmareType.StoryOnly;
+    MapNoNecro = 1;
+    //secret_rift_position = Vector(58.92, 3.75, -86.14);
+    # First Letter in Code
+    //secret_rift_code = 's';
+}

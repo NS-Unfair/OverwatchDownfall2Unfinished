@@ -1,0 +1,124 @@
+
+import '../../main.del';
+
+playervar Boolean VengefulSpirit_is_respawning 24;
+playervar Number VengefulSpirit_radius 27;
+playervar Any[] VengefulSpirit_effects 29;
+
+// Role: Damage
+
+rule: "Entity Type \"VengefulSpirit\" - Spawned"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.VengefulSpirit)
+if(HasSpawned())
+{
+    VengefulSpirit_is_respawning = false;
+    isGamePlayer = false;
+    RemoveAllHealthPoolsFromPlayer();
+    ForcePlayerHero(Hero: Hero.Zenyatta);
+    AI_name = 'Vengeful Ghost';
+    MyEnemyType = EnemyType.Gadget;
+    StartForcingDummyBotName(EventPlayer(), AI_name);
+    SetGravity(GravityPercent: 0);
+    SetStatus(Assister: null, Status: Status.Unkillable, Duration: 9999);
+    StopScalingPlayer();
+    DisableMovementCollisionWithEnvironment(EventPlayer(), true);
+    SetMaxHealth(EventPlayer(), 150);
+    CreateEffect(AllPlayers(), Effect.Sphere, Color.Purple, EventPlayer(), VengefulSpirit_radius, EffectRev.VisibleToPositionAndRadius);
+    VengefulSpirit_effects = [LastCreatedEntity()];
+    CreateEffect(AllPlayers(), Effect.BadAuraSound, Color.Purple, EventPlayer(), VengefulSpirit_radius * 8, EffectRev.VisibleToPositionAndRadius);
+    ModifyVariable(VengefulSpirit_effects, Operation.AppendToArray, LastCreatedEntity());
+    ai_cheat_death = true;
+    VengefulSpirit_radius = 3;
+}
+
+rule: "Entity Type \"VengefulSpirit\" - Find Target"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.VengefulSpirit)
+if(HasSpawned())
+if(IsAlive())
+if(ai_target == null || IsDead(ai_target) || ai_target != LastOf(SortedArray(GetGamePlayers(), Health(ArrayElement()))))
+{
+    ai_target = LastOf(SortedArray(GetGamePlayers(), Health(ArrayElement())));
+}
+
+rule: "Entity Type \"VengefulSpirit\" - Chase Target"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.VengefulSpirit)
+if(HasSpawned())
+if(IsAlive())
+if(ai_target)
+if(!VengefulSpirit_is_respawning)
+{
+    StopForcingPlayerPosition();
+    ApplyImpulse(EventPlayer(), DirectionTowards(EyePosition(), EyePosition(ai_target)), 1.5, Relative.ToWorld, ContraryMotion.Incorporate);
+    Wait(0.5);
+    LoopIfConditionIsTrue();
+    StartForcingPlayerPosition(EventPlayer(), PositionOf(), false);
+}
+
+rule: "Entity Type \"VengefulSpirit\" - Update"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.VengefulSpirit)
+if(HasSpawned())
+if(IsAlive())
+if(ai_target)
+if(!VengefulSpirit_is_respawning)
+{
+    StartDamageOverTime(FilteredArray(GetGamePlayers(), DistanceBetween(EventPlayer(), ArrayElement()) <= VengefulSpirit_radius), EventPlayer(), 0.3, 25);
+    Wait(0.3);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Entity Type \"VengefulSpirit\" - Damage Dealt"
+Event.OnDamageDealt
+if(MyEntityType == EntityType.VengefulSpirit)
+if(HasSpawned())
+if(IsAlive())
+if(ai_target)
+if(!VengefulSpirit_is_respawning)
+{
+    VengefulSpirit_radius += EventDamage() * 0.002;
+    Heal(FilteredArray(GetLivingEnemies(), ArrayElement() != EventPlayer() && DistanceBetween(EventPlayer(), ArrayElement()) <= VengefulSpirit_radius), EventPlayer(), EventDamage() * 0.25);
+}
+
+rule: "Entity Type \"VengefulSpirit\" - Death (Not supposed to happen)"
+Event.OnDeath
+if(MyEntityType == EntityType.VengefulSpirit)
+if(HasSpawned())
+if(IsDead())
+if(ai_target)
+{
+    Teleport(EventPlayer(), PositionOf() + (Up() * 2));
+    Resurrect();
+    ApplyImpulse(EventPlayer(), Up(), 10, Relative.ToWorld, ContraryMotion.CancelXYZ);
+}
+
+rule: "Entity Type \"VengefulSpirit\" - Respawn"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.VengefulSpirit)
+if(HasSpawned())
+if(IsAlive())
+if(Health() <= 1)
+if(!VengefulSpirit_is_respawning)
+{
+    if(CountOf(FilteredArray(AllPlayers(Team.Team2), ArrayElement().MyEntityType == EntityType.VengefulSpirit)) < VengefulSpirit_spawn_count) {
+        AbortIfConditionIsFalse();
+        MyEntityType = EntityType.Unspawned;
+        SetInvisible(EventPlayer(), InvisibleTo.All);
+        VengefulSpirit_is_respawning = false;
+        Abort();
+    }
+
+    ai_target = null;
+    VengefulSpirit_is_respawning = true;
+    SetInvisible(EventPlayer(), InvisibleTo.All);
+    SetStatus(Assister: null, Status: Status.PhasedOut, Duration: 9999);
+    Heal(EventPlayer(), null, 99999);
+    Wait(7.5);
+    VengefulSpirit_radius = 3;
+    ClearStatus(EventPlayer(), Status.PhasedOut);
+    Teleport(EventPlayer(), EyePosition(RandomValueInArray(GetGamePlayers())) + (DirectionFromAngles(RandomInteger(0, 360)) * 18));
+    SetInvisible(EventPlayer(), InvisibleTo.None);
+    VengefulSpirit_is_respawning = false;
+}

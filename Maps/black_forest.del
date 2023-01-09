@@ -1,0 +1,9 @@
+
+import "../main.del";
+
+rule: "Map - Black Forest"
+if(CurrentMap() == Map.Black_Forest)
+{
+    GoopSpawns = [Vector(24.201, 11.605, -16.654), Vector(4.819, 12.476, -19.526), Vector(-24.525, 12.09, 4.481), Vector(18.554, 11.563, 29.579), Vector(1.046, 12.973, 29.749), Vector(7.724, 12.724, 16.831), Vector(8.134, 12.77, -7.406), Vector(-11.903, 13.318, 11.103), Vector(26.801, 12.033, -9.174), Vector(31.821, 12, 36.345), Vector(5.261, 16.998, 7.9), Vector(32.871, 12, -24.287), Vector(5.293, 12.5, 9.616), Vector(4.475, 12.5, -0.935), Vector(26.478, 9, 5.132), Vector(-8.957, 13, 28.539), Vector(-14.635, 13.063, -19.393)];
+    GameMapName = 'Map.Black_Forest.Name';
+}

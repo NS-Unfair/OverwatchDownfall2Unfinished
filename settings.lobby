@@ -1,0 +1,55 @@
+{
+    "Extensions": {
+        "Spawn More Dummy Bots": true,
+        "Beam Effects": true,
+        "Beam Sounds": true,
+        "Buff Status Effects": true,
+        "Energy Explosion Effects": true,
+        "Buff and Debuff Sounds": true,
+        "Debuff Status Effects": true,
+        "Explosion Sounds": true,
+        "Kinetic Explosion Effects": true
+    },
+    "Heroes": {
+        "Team 2": {
+            "Soldier: 76": {
+                "Helix Rockets Cooldown Time": 0
+            }
+        }
+    },
+    "Workshop": {
+        "Game Difficulty": 3
+    },
+    "Mode Name": "<FGa22cf7FF>Downfall II<FGFFFFFFFF> (Debug Build)",
+    "Description": "<FGa22cf7FF>Downfall II<FGFFFFFFFF> is an endless gamemode where you get as many tasks done as possible while enemies tries to stop your team.",
+    "Lobby": {
+        "Max Team 1 Players": 4,
+        //"Max Team 2 Players": 1,
+        "Max Team 2 Players": 0,
+        "Max Spectators": 2,
+        "Map Rotation": "After A Game",
+        "Team Balancing": "Off",
+        "Return To Lobby": "After A Game",
+        "Allow Players Who Are In Queue": false,
+        "Swap Teams After Match": false,
+        "Max FFA Players": 0,
+        "Pause Game On Player Disconnect": false,
+        "Match Voice Chat": true,
+        "Use Experimental Update If Available": false
+    },
+    "Modes": {
+        "All": {
+            "Allow Hero Switching": true
+        },
+        "Skirmish": {
+            "Enabled Maps": [
+                "Havana"
+            ]
+        },
+        "Team Deathmatch": {
+            "Enabled Maps": [
+                //"Dorado"
+            ]
+        }
+    }
+}

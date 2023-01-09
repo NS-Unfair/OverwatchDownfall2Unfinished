@@ -1,0 +1,444 @@
+import "../../main.del";
+
+// Role: Tank
+
+// Description
+/*
+    The Devaslator Support-290Z mech is no joke. It is a machine built with the purpose of destructio. It's role is to deal high amounts damage to enemies.
+
+    Its main weapon is the Electric Shockgun, aka BTD (Bulb Transformative Device,) but that is a pretty boring name.
+    It uses the gases inside of the bulb to build up an electric charge to disarm and hurt its victims. When it is shot, it takes the form of a sphere.
+    This weapon can also overheat, so often the Devaslator needs to vent the heat by "reloading."
+
+    The first ability it has is the Meltdown Lazer or just Meltdown. When Devaslator uses this ability, its BTD will fire a lazer at its foes.
+    This lazer will not damage shields; it will go straight past the shields.
+
+    The second ability is Life Support. It is similar to Goopling's Life Support ability but with extra healing dealt and it can only use it on one teammate at
+    a time.
+
+    It has two melee abilities. One is headbutting their enemies. The stun duration of the headbutt is dependent on what role their hero has. Damage roles will receive a
+    longer stun than support roles, which is longer than tank roles. The secondary melee it has is Accelerated Punch; this has to be charged up.
+    It deals much more damage than it's real melee ability.
+*/
+
+// 5 abilities total
+
+Number devaslator_dspd: 105;
+Number devaslator_charge_mspd: 80;
+Number devaslator_charge_speed: 30;
+Number devaslator_cool_speed: 30;
+Number devaslator_overheat_speed: 5;
+Number devaslator_shockgun_dps_percent: 125;
+playervar Boolean devaslator_ability5_disabled 32 = true;
+playervar Number devaslator_primary_charge 33 = 0;
+playervar Number devaslator_overheat 34 = 0;
+playervar Boolean devaslator_lazer 35 = false;
+playervar Boolean devastator_do_overheat 36 = false;
+playervar Button DevaslatorLazerButton 37 = Button.Ability1;
+
+rule: "Entity Type \"Devaslator\" - Death"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+{
+    StopChasingVariable(devaslator_overheat);
+    DestroyAllProgressBarHudText();
+}
+
+rule: "Entity Type \"Devaslator\" - Spawned"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+{
+    StopHealingModification(PassiveHealCancel);
+    PassiveHealCancel = null;
+    
+    RemoveAllHealthPoolsFromPlayer();
+    if(!IsDummyBot())
+        CreateProgressBarHudText(EventPlayer(), devaslator_overheat, 'Overheat', Location.Top, 0, Color.Yellow, Color.Gray, ProgressBarHudEvaluation.ValuesAndColor, Spectators.DefaultVisibility);
+    SetInvisible(EventPlayer(), InvisibleTo.None);
+    SetMaxHealth(EventPlayer(), 0);
+    SetKnockbackReceived(KnockbackReceivedPercent: 0);
+    SetKnockbackDealt(KnockbackDealtPercent: 0);
+    SetDamageDealt(EventPlayer(), 100);
+    DisallowButton(Button: Button.SecondaryFire);
+    DisallowButton(Button: Button.Ability1);
+    DisallowButton(Button: Button.Ability2);
+    DisallowButton(Button: Button.Melee);
+    DisallowButton(Button: Button.Reload);
+    DevaslatorLazerButton = Button.Ability1;
+
+    devaslator_overheat = 0;
+    
+    if(EntityVariant == 1) {
+        AI_name = 'Devaslator';
+        # Disables 5th Devaslator ability (Secondary Fire, an alternative melee)
+        devaslator_ability5_disabled = false;
+
+        # Unlike the regular Devaslator, the Defence Breaker variant has 3000 armor that automatically regenerates
+        # Also has one extra ability: Electrical Punch
+        AddHealthPoolToPlayer(EventPlayer(), HealthType.Health, 75 - HealthOfType(HealthType: HealthType.Health), true, false);
+        AddHealthPoolToPlayer(EventPlayer(), HealthType.Armor, 3000 - HealthOfType(HealthType: HealthType.Armor), true, false);
+    } else {
+        AI_name = 'Devaslator';
+        devaslator_ability5_disabled = true;
+
+        # Devaslator has the same ammount of health as a goopling, but with extra armor and shields
+        # The Devaslator mech by itself has 3000 hit points total, 2000 armor and 1000 shields
+        AddHealthPoolToPlayer(EventPlayer(), HealthType.Health, 75 - HealthOfType(HealthType: HealthType.Health), true, false);
+        AddHealthPoolToPlayer(EventPlayer(), HealthType.Shields, 800 - HealthOfType(HealthType: HealthType.Shields), true, false);
+        AddHealthPoolToPlayer(EventPlayer(), HealthType.Armor, 1000 - HealthOfType(HealthType: HealthType.Armor), false, false);
+    }
+
+    MyEnemyType = EnemyType.MiniBoss;
+
+    DisallowButton(Button: Button.PrimaryFire);
+    ForcePlayerHero(Hero: Hero.Pharah);
+    SetAmmo(Ammo: 0);
+    SetMaxAmmo(MaxAmmo: 100);
+    StartScalingPlayer(EventPlayer(), 1.5, false);
+    AI_name = 'Devaslator';
+    devaslator_ability5_disabled = true;
+    SetReloadEnabled(Enabled: false);
+
+    SetMoveSpeed(MoveSpeedPercent: devaslator_dspd);
+    StartForcingDummyBotName(EventPlayer(), AI_name);
+    StartHealOverTime(EventPlayer(), null, 0.1, 999999);
+
+    MinWait();
+    ai_actual_max_health = Health();
+}
+
+rule: 'Enemy Type \"Devaslator\" (Defence Breaker Variant) - Death'
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(MyEnemyType == EnemyType.Boss)
+if(EntityVariant == 1)
+{
+    StartForcingDummyBotName(EventPlayer(), $'{AI_name} (Boss)');
+}
+
+define DEVASTATOR_SHOCKGUN_CONDITION: MyEntityType == EntityType.Devaslator && HasSpawned() && IsAlive() && MyEnemyType != EnemyType.Boss && IsButtonHeld(Button: Button.PrimaryFire);
+
+rule: "Entity Type \"Devaslator\" - Primary : Electric Shockgun"
+Event.OngoingPlayer
+if(!ai_using_ability)
+if(DEVASTATOR_SHOCKGUN_CONDITION)
+{
+    ai_using_ability = true;
+    devastator_do_overheat = false;
+    devaslator_primary_charge = 0;
+    SetMoveSpeed(MoveSpeedPercent: devaslator_charge_mspd);
+    SetAimSpeed(TurnSpeedPercent: 20);
+    while(DEVASTATOR_SHOCKGUN_CONDITION) {
+        ChaseVariableOverTime(devaslator_primary_charge, devaslator_primary_charge + devaslator_charge_speed, 1, TimeChaseReevaluation.None);
+        ChaseVariableOverTime(devaslator_overheat, devaslator_overheat + devaslator_overheat_speed + (0.05 * devaslator_primary_charge), 1, TimeChaseReevaluation.None);
+        WaitUntil(!DEVASTATOR_SHOCKGUN_CONDITION, 1);
+    }
+    StopChasingVariable(devaslator_primary_charge);
+    SetProjectileSpeed(ProjectileSpeedPercent: 9999);
+    SetDamageDealt(DamageDealtPercent: (devaslator_shockgun_dps_percent/100)*Min(devaslator_primary_charge, 100));
+    SetAimSpeed(TurnSpeedPercent: 100);
+    AllowButton(Button: Button.PrimaryFire);
+    SetAmmo(Ammo: 1);
+    PressButton(Button: Button.PrimaryFire);
+    DisallowButton(Button: Button.PrimaryFire);
+    SetMoveSpeed(MoveSpeedPercent: devaslator_dspd);
+    ApplyImpulse(EventPlayer(), DirectionFromAngles(-HorizontalFacingAngleOf()), (40/100) * devaslator_primary_charge, Relative.ToWorld, ContraryMotion.Incorporate);
+    SetStatus(EventPlayer(), null, Status.Stunned, 1);
+    devastator_do_overheat = true;
+    ai_using_ability = false;
+}
+rule: "Entity Type \"Devaslator\" - Primary : Electric Shockgun Update Ammo"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(Ammo() != RoundToInteger(devaslator_primary_charge, Rounding.Nearest))
+{
+    SetAmmo(Ammo: RoundToInteger(devaslator_primary_charge, Rounding.Nearest));
+    Wait(.16, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+rule: "Entity Type \"Devaslator\" - Reload : Release"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: Button.Reload))
+if(CanUseAbilities())
+{
+    devastator_do_overheat = false;
+    Number goto: Max(devaslator_overheat-devaslator_cool_speed, 0);
+    Number dis: goto - (devaslator_overheat-devaslator_cool_speed);
+    Number time: 1-(dis/devaslator_cool_speed);
+    ChaseVariableOverTime(devaslator_overheat, goto, time, TimeChaseReevaluation.None);
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+rule: "Entity Type \"Devaslator\" - Reload : Release End"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(!IsButtonHeld(Button: Button.Reload) || !CanUseAbilities())
+{
+    devastator_do_overheat = true;
+}
+rule: "Entity Type \"Devaslator\" - Do Overheat"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(devastator_do_overheat)
+{
+    ChaseVariableOverTime(devaslator_overheat, devaslator_overheat + devaslator_overheat_speed, 1, TimeChaseReevaluation.None);
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Entity Type \"Devaslator\" - Overheat Damage"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(devaslator_overheat > 100)
+{
+    StartDamageOverTime(EventPlayer(), EventPlayer(), 1, 8 * (devaslator_overheat - 100));
+    SetStatus(EventPlayer(), EventPlayer(), Status.Burning, 1);
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Entity Type \"Devaslator\" - Ability 1 : Meltdown (Lazer)"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: DevaslatorLazerButton))
+if(!devaslator_lazer)
+{
+    ai_using_ability = true;
+    SetMoveSpeed(MoveSpeedPercent: devaslator_dspd * 0.1);
+    Wait(1.5);
+    devaslator_lazer = true;
+}
+
+rule: "Entity Type \"Devaslator\" / \"Devastator\" -  Meltdown Lazer Damage"
+Event.OngoingPlayer
+if(devaslator_lazer)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: DevaslatorLazerButton))
+{
+    # Yes I'm lazy and I am reusing stuff
+    ai_using_ability = true;
+    SetMoveSpeed(MoveSpeedPercent: devaslator_charge_mspd);
+    SetDamageDealt(DamageDealtPercent: 100);
+    define waitTime: 0.25;
+    define stack: 4;
+    Wait(0.5, WaitBehavior.IgnoreCondition);
+    /*Player[] damaged! = FilteredArray(AllLivingPlayers(OppositeTeamOf(TeamOf())), DistanceBetween(
+        RayCastHitPosition(EyePosition(), EyePosition() + (FacingDirectionOf() * Min(DistanceBetween(EventPlayer(), ArrayElement()), 10))),
+        ArrayElement()
+    ) < 6);*/
+    Player[] damaged! = FilteredArray(AllLivingPlayers(OppositeTeamOf(TeamOf())), DistanceBetween(
+        RayCastHitPosition(EyePosition(), EyePosition() + (FacingDirectionOf() * Min(DistanceBetween(EventPlayer(), ArrayElement()), 10))),
+        ArrayElement()
+    ) < 3);
+    StartDamageOverTime(damaged, EventPlayer(), waitTime * stack, 30);
+    SetStatus(damaged, EventPlayer(), Status.Burning, waitTime * stack);
+    LoopIfConditionIsTrue();
+    ai_using_ability = false;
+    devaslator_lazer = false;
+    SetMoveSpeed(MoveSpeedPercent: devaslator_dspd);
+}
+
+rule: "Entity Type \"Devaslator\" - Ability 2 : Life Support"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: Button.Ability2))
+{
+    GooplingHealNearby();
+}
+
+/*rule: "Entity Type \"Devaslator\" - Melee : Headbutt"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: Button.Melee))
+if(IsOnGround())
+if(!ai_using_ability)
+{
+    ai_using_ability = true;
+    SetMoveSpeed(MoveSpeedPercent: 0);
+    ApplyImpulse(EventPlayer(), DirectionFromAngles(-HorizontalFacingAngleOf()), 20, Relative.ToWorld, ContraryMotion.CancelXYZ);
+    Wait(.25);
+    ApplyImpulse(EventPlayer(), DirectionFromAngles(HorizontalFacingAngleOf()), 30, Relative.ToWorld, ContraryMotion.CancelXYZ);
+    Wait(.25);
+    SetDamageDealt(DamageDealtPercent: 300);
+    AllowButton(Button: Button.Melee);
+    PressButton(Button: Button.Melee);
+    DisallowButton(Button: Button.Melee);
+    SetMoveSpeed(EventPlayer(), devaslator_dspd);
+    ai_using_ability = false;
+}*/
+
+rule: "Entity Type \"Devaslator\" - Melee : Accelerated Slam"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: Button.Melee))
+if(IsOnGround())
+if(!ai_using_ability)
+{
+    ai_using_ability = true;
+    SetMoveSpeed(MoveSpeedPercent: 0);
+    PlayEffect(AllPlayers(), PlayEffect.BuffExplosionSound, Color.Black, EyePosition(), 16);
+    ApplyImpulse(EventPlayer(), Up(), 5, Relative.ToWorld, ContraryMotion.CancelXYZ);
+    Wait(.25);
+    PlayEffect(AllPlayers(), PlayEffect.DebuffImpactSound, Color.Black, EyePosition(), 16);
+    WaitUntil(IsOnGround(), 5);
+    //PlayEffect(AllPlayers(), PlayEffect.DoomfistMeteorStrikeImpactSound, Color.Black, EyePosition(), 16);
+    PlayEffect(AllPlayers(), PlayEffect.RingExplosion, Color.Red, PositionOf(), 8);
+    AllowButton(EventPlayer(), Button.Melee);
+    PressButton(EventPlayer(), Button.Melee);
+    MinWait();
+    DisallowButton(EventPlayer(), Button.Melee);
+    
+    SetMoveSpeed(EventPlayer(), devaslator_dspd);
+    ai_using_ability = false;
+}
+
+rule: "Entity Type \"Devaslator\" - No Knock Down Status"
+Event.OnDamageTaken
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(HasStatus(EventPlayer(), Status.KnockedDown))
+{
+    ClearStatus(EventPlayer(), Status.KnockedDown);
+    SetStatus(EventPlayer(), Attacker(), Status.Stunned, 2);
+}
+
+rule: "Entity Type \"Devaslator\" - Elimination Earn Armor"
+Event.OnElimination
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+{
+    AddHealthPoolToPlayer(EventPlayer(), HealthType.Health, 200, false, true);
+}
+
+rule: "Entity Type \"Devaslator\" - Frozen"
+Event.OnDamageTaken
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(HasStatus(EventPlayer(), Status.Frozen))
+{
+    
+}
+
+rule: "Entity Type \"Devaslator\" - Headbutt Damage"
+Event.OnDamageDealt
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(IsMeleeing())
+if(Victim() != EventPlayer())
+{
+    ApplyImpulse(Victim(), FacingDirectionOf(), 40, Relative.ToWorld, ContraryMotion.CancelXYZ);
+    SetStatus(Victim(), EventPlayer(), Status.KnockedDown, 1.5);
+}
+
+rule: "Entity Type \"Devaslator\" - Secondary : Accelerated Punch" 
+Event.OngoingPlayer
+if(!devaslator_ability5_disabled)
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+{}
+rule: "AI \"Devaslator\" - Think"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devaslator)
+if(HasSpawned())
+if(IsAlive())
+if(AI_controlled)
+//if(!BossSuppressAI)
+{
+    was_ai_target = ai_target;
+    if(!ai_target) {
+        ai_target = FirstOf(SortedArray(FilteredArray(GetGamePlayers(OppositeTeamOf(TeamOf())), 
+            (IsInLineOfSight(EyePosition(), EyePosition(ArrayElement()), BarrierLOS.EnemyBarriersBlock) || IsInLineOfSight(EyePosition(), PositionOf(ArrayElement()), BarrierLOS.EnemyBarriersBlock)) &&
+            !HasStatus(ArrayElement(), Status.Invincible) &&
+            !HasStatus(ArrayElement(), Status.Unkillable) &&
+            !HasStatus(ArrayElement(), Status.PhasedOut)),
+        Health(ArrayElement())));
+    }
+
+    if(IsDead(ai_target)) {
+        ai_target = null;
+    }
+
+    if(ai_target) {
+        StartFacing(EventPlayer(), DirectionTowards(EyePosition(), ai_target), 200, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+        StartThrottleInDirection(EventPlayer(), DirectionFromAngles(HorizontalAngleFromDirection(DirectionTowards(EventPlayer(), ai_target)), HorizontalAngleTowards(EventPlayer(), PositionOf(ai_target))), 1, Relative.ToWorld, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.DirectionAndMagnitude);
+
+        if(!IsInLineOfSight(EventPlayer(), ai_target)) {
+            ai_target = null;
+        }
+        
+        if(IsButtonHeld(Button: Button.PrimaryFire)) {
+            if(devaslator_primary_charge >= 100 && Min(devaslator_primary_charge, 100) * (300 * 1.5) >= Health(ai_target)) {
+                StopHoldingButton(EventPlayer(), Button.PrimaryFire);
+            }
+        } else if(IsButtonHeld(Button: Button.Ability1)) {
+            if(devaslator_overheat > 90) {
+                StopHoldingButton(EventPlayer(), Button.Ability1);
+            }
+        } else if(!ai_using_ability) {
+            if(HorizontalAngleTowards(EventPlayer(), PositionOf(ai_target)) < 35 && VerticalAngleTowards(EventPlayer(), PositionOf(ai_target)) < 35) {
+                StartHoldingButton(EventPlayer(), Button.PrimaryFire);
+            }
+
+            define bruv = FilteredArray(AllLivingPlayers(OppositeTeamOf(TeamOf())), DistanceBetween(
+                RayCastHitPosition(EyePosition(), EyePosition() + (FacingDirectionOf() * Min(DistanceBetween(EventPlayer(), ArrayElement()), 10))),
+                ArrayElement()
+            ) < 3);
+
+            if(CountOf(FilteredArray(bruv, Health(ArrayElement()) < MaxHealth(ArrayElement())*0.2) >= 3)) {
+                StartHoldingButton(EventPlayer(), Button.Ability1);
+            }
+        }
+
+        if(DistanceBetween(EventPlayer(), ai_target) <= 8 && IsOnGround() && !AICanMove(ai_target)) {
+            StopHoldingButton(Button: Button.PrimaryFire);
+            PressButton(Button: Button.Melee);
+        }
+    } else {
+        StopFacing();
+        StopThrottleInDirection();
+        StopHoldingButton(EventPlayer(), Button.PrimaryFire);
+    }
+
+    Wait(update_tick);
+
+    if(devaslator_overheat > 90) {
+        StartHoldingButton(EventPlayer(), Button.Reload);
+    }
+
+    if(devaslator_overheat < 10) {
+        StopHoldingButton(EventPlayer(), Button.Reload);
+    }
+
+    Wait(update_tick);
+    LoopIfConditionIsTrue();
+}

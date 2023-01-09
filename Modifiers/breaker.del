@@ -1,0 +1,21 @@
+
+import '../main.del';
+
+playervar Boolean mod_breaker_cancel 23;
+
+rule: "Modifier 'Breaker' - Damage Dealt Enemy"
+Event.OnDamageDealt
+Team.Team2
+if(HasSpawned())
+if(ArrayContains(MappedArray(ModifiersChoosen, ArrayElement()[0]), Modifier.Breaker))
+if(!mod_breaker_cancel)
+{
+    mod_breaker_cancel = true;
+    if(HealthOfType(Victim(), HealthType.Armor) != 0) {
+        Damage(Victim(), EventPlayer(), EventDamage() * 0.2 * GetModifier(Modifier.Breaker)[1]);
+    } else {
+        Damage(Victim(), EventPlayer(), EventDamage() * 0.05 * GetModifier(Modifier.Breaker)[1]);
+    }
+    MinWait();
+    mod_breaker_cancel = false;
+}

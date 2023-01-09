@@ -1,0 +1,25 @@
+import "../../main.del";
+
+// Role: Damage
+
+// Description
+/*
+    Unlike Support-290Z, the Tank-291Z purpose is for destruction of anyone who stands in its way.
+
+    Its primary weapon is Meltdown. It fires a lazer instantly that sets enemies on fire and bypasses shields.
+*/
+
+rule: "Entity Type \"Devastator\" - Primary : Meltdown (Lazer)"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Devastator)
+if(HasSpawned())
+if(IsAlive())
+if(IsButtonHeld(Button: DevaslatorLazerButton))
+if(!devaslator_lazer)
+{
+    # \"Imagine reusing code\" - Nerd
+    # \"Imagine not optimizing\" - Giga Nerd
+    ai_using_ability = true;
+    devaslator_lazer = true;
+    DevaslatorLazerButton = Button.PrimaryFire;
+}

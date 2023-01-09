@@ -1,0 +1,8 @@
+
+December:
+    Fix Goopling AI
+    Program Disruptor
+
+For Later:
+    Make better pathfinding
+    

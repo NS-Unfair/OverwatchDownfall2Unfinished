@@ -1,0 +1,10 @@
+
+import "../main.del";
+
+rule: "Map - Circuit Maximus (Colosseo)"
+if(CurrentMap() == Map.Colosseo)
+{
+    GoopSpawns = [];
+    PlayerSpawns = [];
+    GameMapName = 'Circuit Maximus';
+}

@@ -1,0 +1,67 @@
+
+import '../../main.del';
+
+// Role: Damage
+
+playervar Number ai_turret_cooldown 14;
+
+rule: "Entity Type \"Turret\" - Spawned"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Turret)
+if(HasSpawned())
+if(IsAlive())
+{
+    isGamePlayer = false;
+    SetInvisible(InvisibleTo: InvisibleTo.All);
+    RemoveAllHealthPoolsFromPlayer();
+    ForcePlayerHero(Hero: Hero.Torbjorn);
+    AI_name = '';
+    MyEnemyType = EnemyType.Gadget;
+    StartForcingDummyBotName(EventPlayer(), '');
+    SetMaxHealth(HealthPercent: 100);
+    SetProjectileGravity(ProjectileGravityPercent: 1000);
+    SetProjectileSpeed(ProjectileSpeedPercent: 0);
+    SetStatus(Assister: null, Status: Status.PhasedOut, Duration: 9999);
+    Wait(0.5);
+    StartForcingPlayerPosition(Position: RayCastHitPosition(EyePosition(), EyePosition() - (Up() * 10), [], AllPlayers(), false), Reevaluation: false);
+    MinWait();
+    SetFacing(Direction: DirectionFromAngles(RandomReal(0, 360), -80), Relative: Relative.ToWorld);
+    SetAbilityCooldown(Button: Button.Ability1, Cooldown: 0);
+    Wait(0.5);
+    PressButton(Button: Button.Ability1);
+    Wait(0.25);
+    SetProjectileGravity(ProjectileGravityPercent: 100);
+    SetProjectileSpeed(ProjectileSpeedPercent: 100);
+    ai_using_ability = true;
+    ai_turret_cooldown = AbilityCooldown(Button: Button.Ability1) + 0.3;
+}
+
+rule: "Entity Type \"Turret\" - Death"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Turret)
+if(HasSpawned())
+if(IsAlive())
+if(ai_using_ability)
+if(AbilityCooldown(Button: Button.Ability1) > ai_turret_cooldown)
+{
+    ClearStatus(Status: Status.PhasedOut);
+    StartForcingDummyBotName(EventPlayer(), '');
+    DisableKillFeed(AllPlayers());
+    Kill();
+    MinWait();
+    EnableKillFeed(AllPlayers());
+    ai_using_ability = false;
+    MyEntityType = EntityType.Unspawned;
+}
+
+rule: "Entity Type \"Turret\" - Elimination"
+Event.OnElimination
+if(MyEntityType == EntityType.Turret)
+if(HasSpawned())
+if(IsAlive())
+if(ai_using_ability)
+{
+    DisableKillFeed(AllPlayers());
+    MinWait();
+    EnableKillFeed(AllPlayers());
+}

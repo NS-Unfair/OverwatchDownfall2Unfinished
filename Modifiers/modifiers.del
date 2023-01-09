@@ -1,0 +1,94 @@
+
+import '../main.del';
+
+// Miniboss: A Minibosses spawn during a wave/round
+// Breaker: Enemies deal more damage. More damage is dealt to armor
+
+Any[] ModifierInstance(Modifier modifier, Number level): [modifier, level];
+
+import "breaker.del";
+import "steal.del";
+import "Special/withering.del";
+globalvar Number VengefulSpirit_spawn_count 24;
+
+enum Modifier {
+    Miniboss,
+    Breaker,
+    VengefulGhost,
+    Withering,
+    Boss,
+    HealSteal
+}
+
+globalvar String[] ModifierListName = [
+    'Miniboss',
+    'Breaker',
+    'Haunting',
+    'Withering',
+    'Boss',
+    'Heal Heist'
+];
+
+globalvar String[] ModifierDescription = [
+    'Adds Minibosses to the match',
+    'Damage for enemies is increased, more is dealt to armor and shields',
+    'Adds Vengeful Ghost enemies to the round/wave',
+    'Damages teammates and slowly levels itself up'
+];
+
+globalvar String[] ModifierList = [
+    AbilityIconString(Hero.Baptiste, Button.Ability2),
+    AbilityIconString(Hero.Ramattra, Button.Ability1),
+    AbilityIconString(Hero.Cassidy, Button.Ultimate),
+    AbilityIconString(Hero.Echo, Button.Ultimate),
+    AbilityIconString(Hero.Reaper, Button.Ability1),
+    AbilityIconString(Hero.Brigitte, Button.Ability2)
+];
+
+globalvar Modifier[] ModifierChances = [
+    Modifier.Miniboss
+    ,Modifier.Breaker
+    ,Modifier.HealSteal
+    //,Modifier.VengefulGhost
+];
+
+globalvar Number[] ModifierMaxLevel = [
+    -1,
+    3,
+    -1,
+    1,
+    1,
+    -1
+];
+
+Number[] ChooseModifiers(Number points!) {
+    Number[] list! = [];
+    Boolean all_same! = RandomInteger(1, 10) == 10;
+    define available! = ModifierChances;
+
+    while(points > 0) {
+        define mod! = RandomValueInArray(available);
+        define deduct! = CountOf(available) == 1 ? points : RandomInteger(1, points);
+        if(ModifierMaxLevel < 0)
+            ModifyVariable(deduct, Operation.Min, ModifierMaxLevel[mod]);
+        ModifyVariable(available, Operation.RemoveFromArrayByValue, mod);
+        if(all_same && (ModifierMaxLevel[mod] < 0 || points <= ModifierMaxLevel[mod])) {
+            ModifyVariable(list, Operation.AppendToArray, [ModifierInstance(mod, points)]);
+            break;
+        } else {
+            ModifyVariable(list, Operation.AppendToArray, [ModifierInstance(mod, deduct)]);
+            points -= deduct;
+            # Sets \"all_same\" to false if this action cannot be performed because of the choosen modifier
+            all_same = false;
+        }
+    }
+
+    return list;
+}
+
+void ActivateInstantModifiers() {
+    Miniboss_spawn_count += GetModifier(Modifier.Miniboss)[1];
+    //VengefulSpirit_spawn_count = CountOf(FilteredArray(ModifiersChoosen, ArrayElement() == Modifier.VengefulGhost));
+}
+
+Number GetModifier(Modifier modifier): FirstOf(FilteredArray(ModifiersChoosen, ArrayElement()[0] == modifier));

@@ -1,0 +1,32 @@
+
+import "../../main.del";
+
+// Role: Support
+
+rule: "Matrix - Spawned"
+Event.OngoingPlayer
+if(MyEntityType == EntityType.Matrix)
+if(HasSpawned())
+if(IsAlive())
+{
+    isGamePlayer = false;
+    SetInvisible(InvisibleTo: InvisibleTo.All);
+    RemoveAllHealthPoolsFromPlayer();
+    ForcePlayerHero(Hero: Hero.Baptiste);
+    AI_name = '';
+    MyEnemyType = EnemyType.Gadget;
+    StartForcingDummyBotName(EventPlayer(), 'Amplification Matrix');
+    SetMaxHealth(HealthPercent: 100);
+    SetStatus(Assister: null, Status: Status.PhasedOut, Duration: 9999);
+    Wait(0.5);
+    StartForcingPlayerPosition(Position: RayCastHitPosition(EyePosition(), EyePosition() - (Up() * 10), [], AllPlayers(), false), Reevaluation: false);
+    MinWait();
+    SetFacing(Direction: DirectionFromAngles(RandomReal(0, 360), -80), Relative: Relative.ToWorld);
+    SetUltimateCharge(EventPlayer(), 100);
+    Wait(0.5);
+    PressButton(Button: Button.Ultimate);
+    Wait(0.25);
+    SetProjectileGravity(ProjectileGravityPercent: 100);
+    SetProjectileSpeed(ProjectileSpeedPercent: 100);
+    ai_using_ability = true;
+}

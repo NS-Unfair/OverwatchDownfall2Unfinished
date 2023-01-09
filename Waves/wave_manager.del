@@ -1,0 +1,211 @@
+
+import "../main.del";
+
+globalvar define EnemyGroupSpawnQueue 3 = [];
+globalvar Number WaveNumber 5 = 1;
+
+define boss_max: 1;
+define miniboss_max: 3;
+define minion_max: 11;
+define hero_max: 8;
+globalvar Number Miniboss_spawn_count 21 = 0;
+globalvar Number GroupSpawnMultiplier 34 = 1;
+globalvar Boolean NoSpawnAtEnemy;
+Number GamePlayerMultiplier: 1 * NumberOfSlots(Team.Team1) / CountOf(AllPlayers(Team.Team1));
+
+define RandomEnemySpawnable() {
+    define Available! = [];
+
+    if(CountOfPlayerEnemyType(GetSpawnedEnemies(), EnemyType.Minion) + CountOfPlayerEnemyType(GetSpawnedEnemies(), EnemyType.Gadget) < minion_max) {
+        if(EntityEnemyTypes[EnemyType.Minion] > 0 && RandomInteger(0, 10) > 4)
+            ModifyVariable(Available, Operation.AppendToArray, EnemyType.Minion);
+        else if(EntityEnemyTypes[EnemyType.Gadget] > 0)
+            ModifyVariable(Available, Operation.AppendToArray, EnemyType.Gadget);
+    }
+
+    if(CountOfPlayerEnemyType(GetSpawnedEnemies(), EnemyType.Hero) < hero_max && EntityEnemyTypes[EnemyType.Hero] > 0) {
+        ModifyVariable(Available, Operation.AppendToArray, EnemyType.Hero);
+    }
+
+    if(CountOfPlayerEnemyType(GetSpawnedEnemies(), EnemyType.MiniBoss) < miniboss_max && Miniboss_spawn_count > 0 && EntityEnemyTypes[EnemyType.MiniBoss] > 0) {
+        ModifyVariable(Available, Operation.AppendToArray, EnemyType.MiniBoss);
+    }
+
+    Number catagory! = RandomValueInArray(Available);
+
+    if(catagory == EnemyType.MiniBoss) {
+        Miniboss_spawn_count -= 1;
+    }
+
+    return CountOf(Available)>0 ? RandomValueInArray(EntityEnemyTypes[catagory]) : -1;
+}
+
+void MakeNewWave(Number enemyCount!) {
+    LogToInspector($"Wave Manager: Added {enemyCount} enemies");
+    EntityType[] venge_arr! = [];
+    for(define forloopcount = 0; VengefulSpirit_spawn_count - CountOf(FilteredArray(AllPlayers(Team.Team2), ArrayElement().MyEntityType == EntityType.VengefulSpirit)); 1) {
+        ModifyVariable(venge_arr, Operation.AppendToArray, EntityType.VengefulSpirit);
+    }
+
+    if(venge_arr != []) {
+        ModifyVariable(EnemyGroupSpawnQueue, Operation.AppendToArray, [[venge_arr, 3]]);
+    }
+
+    while (enemyCount > 0) {
+        define groupArray! = [];
+        for(define forloopcount = 0; Min(RandomInteger(1, 3), enemyCount); 1) {
+            define spawnable! = RandomEnemySpawnable();
+            if(spawnable != -1) {
+                ModifyVariable(groupArray, Operation.AppendToArray, RandomEnemySpawnable());
+            } else {
+                break;
+            }
+        }
+        if(groupArray != []) {
+            ModifyVariable(EnemyGroupSpawnQueue, Operation.AppendToArray, [[groupArray, 3]]);
+            enemyCount -= CountOf(groupArray);
+        } else {
+            break;
+        }
+    }
+}
+
+globalvar String[][] SeekerStartDialog = [[""]];
+globalvar String[][] SeekerModifierDialog = [[""]];
+
+globalvar Boolean FirstWave = true;
+globalvar Number WaveTime = 0;
+globalvar Number WaveEnemyCount;
+globalvar Any[] ModifiersChoosen;
+globalvar String ModifiersString = '|?|';
+globalvar Vector groupSpawnLocation = Vector(0, -999999, 0);
+globalvar Boolean AlwaysGoopSpawnsAtEnemy;
+
+void MkModifierString() "MakeModifierString" {
+    # Builds Modifier string
+    String out! = '|';
+
+    /*
+    for (define i! = 0; i < CountOf(ModifiersChoosen); i++)
+    {
+        out = $"{out}{ModifiersChoosen[i][0]}:{ModifiersChoosen[i][1]}|";
+    }
+    */
+        
+    for (define i! = 0; i < CountOf(ModifiersChoosen); i++)
+    {
+        # Checking if the level of the modifier is bigger than 1. If not, do not show the level in the hud
+        if(ModifiersChoosen[i][1] > 1)
+            out = $"{out}{ModifierList[ModifiersChoosen[i][0]]}{RoundToInteger(ModifiersChoosen[i][1], Rounding.Down)}|";        
+        else
+            out = $"{out}{ModifierList[ModifiersChoosen[i][0]]}|"; 
+    }
+
+    ModifiersString = out;
+}
+
+rule: "Wave Manager - Initial" {
+    CreateHudText(AllPlayers(Team.Team1), ModifiersString, '', '', Location.Left, 1, Color.Red);
+    # Store the portal effect out of bounds so players can't see
+    CreateEffect(AllPlayers(), Effect.BadAura, Color.Team2, groupSpawnLocation, 5, EffectRev.VisibleToPositionAndRadius);
+    CreateEffect(AllPlayers(), Effect.BadAuraSound, Color.Team2, groupSpawnLocation, 30, EffectRev.VisibleToPositionAndRadius);
+}
+
+globalvar Boolean SuppressNewWave;
+
+rule: "Wave Manager - New Wave"
+if(CountOf(GetGamePlayers()) > 0)
+if(CurrentGameState == GameState.Play)
+if(CountOf(EnemyGroupSpawnQueue) == 0)
+if(!SuppressNewWave)
+{
+    # Prevents a double trigger of this rule
+    SuppressNewWave = true;
+    WaveTime = 0;
+    ActiveSpawns = [];
+    Teleport(AllDeadPlayers(Team.Team1), RandomValueInArray(PlayerSpawns));
+    Resurrect(AllDeadPlayers(Team.Team1));
+
+    player_necro_money += 600;
+
+    if(FirstWave) {
+        FirstWave = false;
+    } else {
+        WaveNumber += 1;
+        ModifiersChoosen = ChooseModifiers(5);
+        //ModifiersChoosen = ChooseModifiers(50);
+        MkModifierString();
+        if(CompetitiveMode) {
+            CompetitiveRanking += CompetitiveWaveScore;
+            CompetitiveWaveScore = 0;
+            BigMessage(AllPlayers(), $'Round {WaveNumber}');
+        } else {
+            BigMessage(AllPlayers(), $'Wave {WaveNumber}');
+        }
+    }
+
+    ActivateInstantModifiers();
+
+    # Make new wave
+    MakeNewWave(Min(Max(20 * escalation, 10), 50));
+    SuppressNewWave = false;
+}
+
+Boolean WaveTimeCondition: CountOf(GetGamePlayers()) > 0 && CurrentGameState == GameState.Play && CountOf(EnemyGroupSpawnQueue) > 0;
+rule: "Wave Manager - Wave Time"
+if(WaveTimeCondition)
+{
+    ChaseVariableOverTime(WaveTime, WaveTime + 1, 1, TimeChaseReevaluation.None);
+    Wait(1, WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Wave Manager - Wave Time"
+if(!WaveTimeCondition)
+{
+    StopChasingVariable(WaveTime);
+}
+
+Player[] GetDespawnedEnemies(): FilteredArray(AllDeadPlayers(), HasSpawned(ArrayElement()) && ArrayElement().MyEntityType == EntityType.Unspawned);
+Player[] GetSpawnedEnemies(): FilteredArray(AllLivingPlayers(Team.Team2), HasSpawned(ArrayElement()) && ArrayElement().MyEntityType != EntityType.Unspawned && ArrayElement().MyEntityType != EntityType.Necro);
+Number CountOfEnemyType(EntityType[] Despawned, EnemyType Type): CountOf(FilteredArray(Despawned, ArrayContains(EntityEnemyTypes[Type], ArrayElement())));
+Number CountOfPlayerEnemyType(Player[] Players, EnemyType Type): CountOf(FilteredArray(Players, ArrayElement().MyEnemyType == Type));
+
+rule: "Wave Manager - Spawn Groups"
+if(FirstOf(EnemyGroupSpawnQueue))
+if(CountOf(ActiveSpawns) > 0)
+// CountOfPlayerEnemyType
+if(
+    /*IsBossFight
+    ||*/ CountOfPlayerEnemyType(GetSpawnedEnemies(), EnemyType.Minion) + CountOfEnemyType(EnemyGroupSpawnQueue[0][0], EnemyType.Minion) <= minion_max
+    && CountOfPlayerEnemyType(GetSpawnedEnemies(), EnemyType.Hero) + CountOfEnemyType(EnemyGroupSpawnQueue[0][0], EnemyType.Hero) <= hero_max
+    && CountOfPlayerEnemyType(GetSpawnedEnemies(), EnemyType.MiniBoss) + CountOfEnemyType(EnemyGroupSpawnQueue[0][0], EnemyType.MiniBoss) <= miniboss_max
+)
+{
+    define preloadGroupSpawnLocation! = RandomValueInArray(ActiveSpawns);
+    Wait(Max(1, update_tick));
+    groupSpawnLocation = preloadGroupSpawnLocation;
+
+    if(AlwaysGoopSpawnsAtEnemy || !NoSpawnAtEnemy && RandomInteger(1, 10) >= 3 && CountOf(GetSpawnedEnemies()) > 0)
+        groupSpawnLocation = PositionOf(RandomValueInArray(FilteredArray(GetSpawnedEnemies(), ArrayElement().MyEnemyType != EnemyType.Gadget && ArrayElement().MyEnemyType != EnemyType.Boss && ArrayElement().MyEnemyType != EnemyType.SubBoss)));
+
+    for (define i! = 0; CountOf(FirstOf(EnemyGroupSpawnQueue)[0]); 1)
+    {
+        define spwned! = SpawnEnemy(groupSpawnLocation, FirstOf(EnemyGroupSpawnQueue)[0][i]);
+        Wait(0.25);
+    }
+    ModifyVariable(EnemyGroupSpawnQueue, Operation.RemoveFromArrayByIndex, 0);
+    Wait(Max(1 - (escalation * 0.03), update_tick));
+    groupSpawnLocation = Vector(0, -999999, 0);
+    Wait(Max((0.75 - (escalation * 0.03)) * GroupSpawnMultiplier * GamePlayerMultiplier, 0.25), WaitBehavior.AbortWhenFalse);
+    LoopIfConditionIsTrue();
+}
+
+Player SpawnEnemy(Vector vec, EntityType type) {
+    define ent! = RandomValueInArray(FilteredArray(AllPlayers(), ArrayElement().MyEntityType == EntityType.Unspawned));
+    ent.MyEntityType = type;
+    ent.AI_controlled = true;
+    Teleport(ent, vec);
+    Resurrect(ent);
+    return ent;
+}
